@@ -39,6 +39,8 @@ typedef struct {
 
 typedef struct {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
+    variable_t *vars;
+    size_t var_count;
 } vcd_t;
 
 
@@ -210,7 +212,41 @@ int handleUpscope(FILE *file, vcd_t* vcd) {
 
 
 int handleVar(FILE *file, vcd_t* vcd) {
-    printf("Found Var\n");
+    variable_t var = {0};
+    int c = 0;
+
+    // Seek the type
+    do {c = getc(file);} while (isspace(c));
+    if (c == EOF) return ERR_FILE_ENDS;
+
+    // Get the type
+    char buf[10] = {0};
+    for (uint8_t i = 0; i < 11; i++) {
+        if (c == EOF) return ERR_FILE_ENDS;
+        if (isspace(c)) break;
+        if (i >= 10) return ERR_INVALID_VAR_TYPE;
+        buf[i] = c;
+        c = getc(file);
+    }
+
+    char types[17][10] = {
+        "event","integer","parameter","real","reg","supply0","supply1","time",
+        "tri","triand","trior","trireg","tri0","tri1","wand","wire","wor"
+    };
+
+    var.type = 0xff;
+    for (uint8_t i = 0; i < 17; i++) {
+        if (strcmp(buf, types[i]) == 0) {
+            var.type = i;
+            break;
+        }
+    }
+    if (var.type == 0xff) return ERR_INVALID_VAR_TYPE;
+
+    // Seek the number
+    do {c = getc(file);} while (isspace(c));
+    if (c == EOF) return ERR_FILE_ENDS;
+
     return seekEnd(file);
 }
 
