@@ -1,11 +1,69 @@
 #ifndef VCD_H_
 #define VCD_H_
 
+
+#include <stddef.h>
+#include <stdint.h>
+
 #define ERR_FILE_ENDS -1
 #define ERR_INVALID_COMMAND -2
 #define ERR_NO_END -3
 #define ERR_INVALID_TIMESCALE -4
 #define ERR_INVALID_UNIT -5
+#define ERR_INVALID_VAR_TYPE -6
+#define ERR_INVALID_SIZE -7
+#define ERR_INVALID_ID -8
+#define ERR_INVALID_NAME -9
+
+
+
+#define CHAR_BUF_SIZE 1024
+#define COMMAND_COUNT 12
+#define MAX_ID_LENGTH 20
+#define MAX_NAME_LENGTH 32 // This one is up for debate.
+
+//! STOP BEING DUMB DUDE
+//TODO: TOKENIZE THE FUCKING FILE OMFG
+//TODO: That would honestly make this so much easier.
+// todo: Or maybe!!! Make a function that grabs the next keyword.
+// todo: You can even maybe make it with static memory hold on yeah that's possible.
+
+
+#define TYPE_EVENT      0
+#define TYPE_INTEGER    1
+#define TYPE_PARAMETER  2
+#define TYPE_REAL       3
+#define TYPE_REG        4
+#define TYPE_SUPPLY0    5
+#define TYPE_SUPPLY1    6
+#define TYPE_TIME       7
+#define TYPE_TRI        8
+#define TYPE_TRIAND     9
+#define TYPE_TRIOR      10
+#define TYPE_TRIREG     11
+#define TYPE_TRI0       12
+#define TYPE_TRI1       13
+#define TYPE_WAND       14
+#define TYPE_WIRE       15
+#define TYPE_WOR        16
+
+
+
+typedef struct {
+    char id[MAX_ID_LENGTH];
+    char name[MAX_NAME_LENGTH];
+    uint8_t type;
+    size_t size;
+    char *value;
+} variable_t;
+
+
+typedef struct {
+    int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
+    variable_t *vars;
+    size_t var_count;
+} vcd_t;
+
 
 
 
