@@ -1,2 +1,5 @@
 all:
-	gcc -o vcd2svg -Wall main.c vcd.c
+	gcc -o vcd2svg -Wall *.c
+
+debug:
+	gcc -o vcd2svg -Wall -g *.c

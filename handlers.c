@@ -1,4 +1,5 @@
 #include "handlers.h"
+#include "vcd.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +8,10 @@
 
 
 static inline int find_option(
-    char *options, char *buf, int option_count, int option_length);
+    const char *options, char *buf, int option_count, int option_length);
 
+static char *nextArbiLengthToken(FILE *file);
+static var_t *getVarByName(vcd_t * restrict vcd, char * restrict name);
 
 // I'm obsessed with using as little dynamic memory as possible.
 #define NEXT_TOKEN(max_size, buf, invalid_err)  \
@@ -21,7 +24,7 @@ static inline int find_option(
     for (uint8_t i = 0; i < 11; i++) {          \
         if (c == EOF) return ERR_FILE_ENDS;     \
         if (isspace(c)) break;                  \
-        if (i >= 10) return invalid_err;        \
+        if (i >= max_size) return invalid_err;        \
         buf[i] = c;                             \
         c = getc(file);                         \
     }                                           \
@@ -55,15 +58,20 @@ int handleEnddefinitions(FILE *file, vcd_t* vcd) {
 int handleScope(FILE *file, vcd_t* vcd) {
     return seekEnd(file); // Not dealing with that yet
 }
+
+
 int handleTimescale(FILE *file, vcd_t* vcd) {
     int c = 0;
     NEXT_TOKEN(3, buf, ERR_INVALID_TIMESCALE);
+
+    printf("Buf is %s\n", buf);
 
     char values[3][4] = {"1", "10", "100"};
     int base_power = find_option(values[0], buf, 3, 4);
     if (base_power == -1) return ERR_INVALID_TIMESCALE;
 
     NEXT_TOKEN(3, unit_buf, ERR_INVALID_UNIT);
+    printf("Unit buf is %s\n", buf);
     char units[6][3] = {"s", "ms", "us", "ns", "ps", "fs"};
     int unit_power = find_option(units[0], unit_buf, 6, 3);
     if (unit_power == -1) return ERR_INVALID_TIMESCALE;
@@ -84,11 +92,11 @@ int handleUpscope(FILE *file, vcd_t* vcd) {
 
 
 int handleVar(FILE *file, vcd_t* vcd) {
-    variable_t var = {0};
+    var_t var = {0};
     int c = 0;
     NEXT_TOKEN(10, type_buf, ERR_INVALID_VAR_TYPE);
 
-    char types[17][10] = {
+    static const char types[17][10] = {
         "event","integer","parameter","real","reg","supply0","supply1","time",
         "tri","triand","trior","trireg","tri0","tri1","wand","wire","wor"
     };
@@ -106,6 +114,9 @@ int handleVar(FILE *file, vcd_t* vcd) {
 
     NEXT_TOKEN(MAX_NAME_LENGTH, name_buf, ERR_INVALID_NAME);
     strcpy(var.name, name_buf);
+
+    vcd->vars[vcd->var_count] = var;
+    vcd->var_count++;
 
     return seekEnd(file);
 }
@@ -129,13 +140,74 @@ int handleDumpon(FILE *file, vcd_t* vcd) {
     return 0;
 }
 int handleDumpvars(FILE *file, vcd_t* vcd) {
-    printf("Found Dumpvars\n");
+    // Count the amount of value changes for each variable.
+
+    size_t current_time = 0;
+
+    while(1) {
+        char *token = nextArbiLengthToken(file);
+        int first_char = tolower(token[0]);
+        if (first_char == '#') {
+            current_time = strtol(token + 1, NULL, 0);
+        }
+        else if (first_char == 'b') {
+            char *name = nextArbiLengthToken(file);
+            if (name == NULL) return ERR_INVALID_VAR_NAME;
+            var_t *var = getVarByName(vcd, name);
+            if (var == NULL) return ERR_INVALID_VAR_NAME;
+
+            var->values[var->value_count].value_string = token;
+            var->values[var->value_count].time = current_time;
+            var->value_count++;
+            free(name);
+        }
+        else if (first_char == 'r') return ERR_NOT_YET_IMPLEMENTED;
+        else if (strchr("01xz", first_char) != NULL) {
+            var_t *var = getVarByName(vcd, token + 1);
+            if (var == NULL) return ERR_INVALID_VAR_NAME;
+
+            var->values[var->value_count].value_char = first_char;
+            var->values[var->value_count].time = current_time;
+            var->value_count++;
+            free(var);
+        }
+        else {
+            printf("idk what I'm supposed to do with %c\n", first_char);
+            return ERR_INVALID_DUMP;
+        }
+    }
+
     return 0;
 }
 
 
+static char *nextArbiLengthToken(FILE *file) {
+    int c = 0;
+    //Skip whitespace
+    do {c = getc(file);} while (isspace(c));
+    if (c == EOF) return NULL;
+
+    // Find the length of the token
+    long file_pos = ftell(file);
+    do {c = getc(file);}
+    while(!isspace(c) && c != EOF);
+    if (c == EOF) return NULL;
+
+    long token_length = 1 + ftell(file) - file_pos;
+
+    // Go back, create a buffer, and copy the token into it.
+    fseek(file, file_pos, SEEK_SET);
+    char *ret = malloc(token_length + 1); // +1 for terminating \0.
+    fread(ret, 1, token_length, file);
+    ret[token_length] = '\0';
+
+    return ret;
+}
+
+
+
 static inline int find_option(
-    char *options, char *buf, int option_count, int option_length
+    const char *options, char *buf, int option_count, int option_length
 ) {
     for (size_t i = 0; i < option_count; i++) {
         if (strcmp(buf, options + (i * option_length)) == 0) {
@@ -143,4 +215,13 @@ static inline int find_option(
         }
     }
     return -1;
+}
+
+
+static var_t *getVarByName(vcd_t* restrict vcd, char* restrict name) {
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        if (strcmp(name, vcd->vars[i].name) == 0)
+            return &(vcd->vars[i]);
+    }
+    return NULL;
 }

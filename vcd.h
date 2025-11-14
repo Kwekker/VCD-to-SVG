@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// I will reorder these some day
 #define ERR_FILE_ENDS -1
 #define ERR_INVALID_COMMAND -2
 #define ERR_NO_END -3
@@ -14,6 +15,11 @@
 #define ERR_INVALID_SIZE -7
 #define ERR_INVALID_ID -8
 #define ERR_INVALID_NAME -9
+#define ERR_NO_VARS -10
+#define ERR_IDK -11
+#define ERR_INVALID_DUMP -12
+#define ERR_INVALID_VAR_NAME -13
+#define ERR_NOT_YET_IMPLEMENTED -14
 
 
 
@@ -48,19 +54,30 @@
 #define TYPE_WOR        16
 
 
+// These have to be dynamic unfortunately.
+typedef struct {
+    union {
+        char *value_string;
+        char value_char;
+    };
+    // If the time values exceed 2^64 something is wrong at the generation side.
+    size_t time;
+} value_pair_t;
+
 
 typedef struct {
     char id[MAX_ID_LENGTH];
     char name[MAX_NAME_LENGTH];
     uint8_t type;
     size_t size;
-    char *value;
-} variable_t;
+    value_pair_t *values;
+    size_t value_count;
+} var_t;
 
 
 typedef struct {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
-    variable_t *vars;
+    var_t *vars;
     size_t var_count;
 } vcd_t;
 

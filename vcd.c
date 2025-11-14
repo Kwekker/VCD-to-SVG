@@ -19,16 +19,42 @@ int interpretVCD(char *file_name) {
 
     vcd_t vcd = {0};
 
+    size_t var_count = countVars(file);
+    printf("Counted %zu vars\n", var_count);
+    if (var_count == 0) return ERR_NO_VARS;
+
+    // Keep this at 0 so that it can be used as an index.
+    vcd.var_count = 0;
+    // No overflows should be possible because we're allocating enough here.
+    vcd.vars = malloc(sizeof(var_t) * var_count);
+
     while(1) {
         int new_char = getc(file);
 
-        if (new_char == EOF) return 0;
+        if (new_char == EOF) break;
         if (new_char == '$') {
             int ret = interpretCommand(file, &vcd);
             if (ret) return ret;
         }
 
     }
+
+    printf("\n\n");
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        var_t var = vcd.vars[i];
+
+        printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
+        for (size_t j = 0; j < var.value_count; j++) {
+            if (var.size == 1)
+                printf("\t %zu: %c\n", j, var.values[j].value_char);
+            else
+                printf("\t %zu: %s\n", j, var.values[j].value_string);
+        }
+    }
+
+
+    fclose(file);
+    free(vcd.vars);
 
     return 0;
 }
@@ -52,9 +78,6 @@ int interpretCommand(FILE *file, vcd_t* vcd) {
 
 
     printf("Found $%s\n", command_buf);
-
-    size_t var_count = countVars(file);
-
 
     static const struct {
         char* name;
@@ -81,13 +104,28 @@ int interpretCommand(FILE *file, vcd_t* vcd) {
         }
     }
 
-
     return ERR_INVALID_COMMAND;
 }
 
 
 static size_t countVars(FILE *file) {
 
-    return 0;
+    char buf[5] = {0};
+    size_t i = 0;
+    size_t var_count = 0;
 
+    int c = getc(file);
+    while(c != EOF) {
+        if (c == '$') i = 0;
+        if (i < 4) buf[i] = c;
+        if (i == 4 && strcmp(buf, "$var") == 0) {
+            var_count++;
+        }
+        c = getc(file);
+        i++;
+    }
+
+    if (fseek(file, 0, SEEK_SET)) return ERR_IDK;
+
+    return var_count;
 }
