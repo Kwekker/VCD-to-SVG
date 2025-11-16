@@ -11,7 +11,7 @@ static inline int find_option(
     const char *options, char *buf, int option_count, int option_length);
 
 static char *nextArbiLengthToken(FILE *file);
-static var_t *getVarByName(vcd_t * restrict vcd, char * restrict name);
+static var_t *getVarById(vcd_t * restrict vcd, char * restrict id);
 
 // I'm obsessed with using as little dynamic memory as possible.
 #define NEXT_TOKEN(max_size, buf, invalid_err)  \
@@ -53,6 +53,13 @@ int handleDate(FILE *file, vcd_t* vcd) {
     return seekEnd(file);
 }
 int handleEnddefinitions(FILE *file, vcd_t* vcd) {
+    // Allocate all value arrays.
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        var_t *var = vcd->vars + i;
+        printf("\x1b[34mvalue count is %zu\x1b[0m\n", var->value_count);
+        var->values = malloc(var->value_count * sizeof(value_pair_t));
+    }
+    vcd->has_allocaded_values = 1;
     return seekEnd(file);
 }
 int handleScope(FILE *file, vcd_t* vcd) {
@@ -86,7 +93,6 @@ int handleTimescale(FILE *file, vcd_t* vcd) {
 
 
 int handleUpscope(FILE *file, vcd_t* vcd) {
-    printf("Found Upscope\n");
     return seekEnd(file);
 }
 
@@ -146,25 +152,31 @@ int handleDumpvars(FILE *file, vcd_t* vcd) {
 
     while(1) {
         char *token = nextArbiLengthToken(file);
+        if (token == NULL) return ERR_FILE_ENDS;
         int first_char = tolower(token[0]);
+
         if (first_char == '#') {
             current_time = strtol(token + 1, NULL, 0);
         }
         else if (first_char == 'b') {
-            char *name = nextArbiLengthToken(file);
-            if (name == NULL) return ERR_INVALID_VAR_NAME;
-            var_t *var = getVarByName(vcd, name);
-            if (var == NULL) return ERR_INVALID_VAR_NAME;
+            char *id = nextArbiLengthToken(file);
+            if (id == NULL) return ERR_INVALID_VAR_ID;
+            var_t *var = getVarById(vcd, id);
+            if (var == NULL) {
+                free(id);
+                return ERR_INVALID_VAR_ID;
+            }
 
             var->values[var->value_count].value_string = token;
             var->values[var->value_count].time = current_time;
             var->value_count++;
-            free(name);
+            free(id);
         }
         else if (first_char == 'r') return ERR_NOT_YET_IMPLEMENTED;
         else if (strchr("01xz", first_char) != NULL) {
-            var_t *var = getVarByName(vcd, token + 1);
-            if (var == NULL) return ERR_INVALID_VAR_NAME;
+
+            var_t *var = getVarById(vcd, token + 1);
+            if (var == NULL) return ERR_INVALID_VAR_ID;
 
             var->values[var->value_count].value_char = first_char;
             var->values[var->value_count].time = current_time;
@@ -193,11 +205,16 @@ static char *nextArbiLengthToken(FILE *file) {
     while(!isspace(c) && c != EOF);
     if (c == EOF) return NULL;
 
-    long token_length = 1 + ftell(file) - file_pos;
+    long token_length = ftell(file) - file_pos;
+    // ftell returns the position of the character after the one we just read.
+    // That is why I'm not using any +1 here.
+    // Also the reason why we need to do file_pos -1 in the upcoming fseek.
 
     // Go back, create a buffer, and copy the token into it.
-    fseek(file, file_pos, SEEK_SET);
+    fseek(file, file_pos - 1, SEEK_SET);
+
     char *ret = malloc(token_length + 1); // +1 for terminating \0.
+    memset(ret, 'E', token_length + 1);
     fread(ret, 1, token_length, file);
     ret[token_length] = '\0';
 
@@ -218,9 +235,12 @@ static inline int find_option(
 }
 
 
-static var_t *getVarByName(vcd_t* restrict vcd, char* restrict name) {
+static var_t *getVarById(vcd_t* restrict vcd, char* restrict id) {
+
+    printf("Looking for var id %s\n", id);
+
     for (size_t i = 0; i < vcd->var_count; i++) {
-        if (strcmp(name, vcd->vars[i].name) == 0)
+        if (strcmp(id, vcd->vars[i].id) == 0)
             return &(vcd->vars[i]);
     }
     return NULL;

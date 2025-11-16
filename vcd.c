@@ -13,9 +13,9 @@
 static int interpretCommand(FILE *file, vcd_t* vcd);
 static size_t countVars(FILE *file);
 
-int interpretVCD(char *file_name) {
-    FILE* file = fopen(file_name, "r");
-    if (file == NULL) return -1;
+
+int interpretVCD(FILE *file) {
+
 
     vcd_t vcd = {0};
 
@@ -34,7 +34,10 @@ int interpretVCD(char *file_name) {
         if (new_char == EOF) break;
         if (new_char == '$') {
             int ret = interpretCommand(file, &vcd);
-            if (ret) return ret;
+            if (ret) {
+                freeVCD(vcd);
+                return ret;
+            }
         }
 
     }
@@ -52,9 +55,7 @@ int interpretVCD(char *file_name) {
         }
     }
 
-
-    fclose(file);
-    free(vcd.vars);
+    freeVCD(vcd);
 
     return 0;
 }
@@ -77,8 +78,6 @@ int interpretCommand(FILE *file, vcd_t* vcd) {
     }
 
 
-    printf("Found $%s\n", command_buf);
-
     static const struct {
         char* name;
         int (*handler)(FILE*, vcd_t*);
@@ -99,7 +98,6 @@ int interpretCommand(FILE *file, vcd_t* vcd) {
 
     for (uint8_t i = 0; i < COMMAND_COUNT; i++) {
         if (strcmp(command_buf, commands[i].name) == 0) {
-            printf("Running function %d: %s\n", i, commands[i].name);
             return commands[i].handler(file, vcd);
         }
     }
@@ -128,4 +126,21 @@ static size_t countVars(FILE *file) {
     if (fseek(file, 0, SEEK_SET)) return ERR_IDK;
 
     return var_count;
+}
+
+
+void freeVCD(vcd_t vcd) {
+    if (vcd.has_allocaded_values) {
+        for (size_t i = 0; i < vcd.var_count; i++) {
+            var_t *var = vcd.vars + i;
+            for (size_t j = 0; j < var->value_count; j++) {
+                if (var->values[j].time) {
+                    free(var->values[j].value_string);
+                }
+            }
+
+            free(var->values);
+        }
+    }
+    free(vcd.vars);
 }

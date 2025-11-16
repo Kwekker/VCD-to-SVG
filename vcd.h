@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // I will reorder these some day
 #define ERR_FILE_ENDS -1
@@ -18,7 +19,7 @@
 #define ERR_NO_VARS -10
 #define ERR_IDK -11
 #define ERR_INVALID_DUMP -12
-#define ERR_INVALID_VAR_NAME -13
+#define ERR_INVALID_VAR_ID -13
 #define ERR_NOT_YET_IMPLEMENTED -14
 
 
@@ -79,12 +80,15 @@ typedef struct {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
     var_t *vars;
     size_t var_count;
+    // Bool to keep track of if all vars->values have been allocated.
+    uint8_t has_allocaded_values;
 } vcd_t;
 
 
 
 
-int interpretVCD(char *file_name);
+int interpretVCD(FILE *file);
+void freeVCD(vcd_t vcd);
 
 
 
