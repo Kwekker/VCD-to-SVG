@@ -1,4 +1,6 @@
 # VCD to SVG converter
+# This program is not in a working state yet!
+# Unfinished!!!!
 This is a program that will eventually be able to generate a diagram from a VCD input. It is written in C without any parser libraries because I am a masochist. I wrote this for the 5 people on this planet that, like me, *hate* it when they have to include a screenshot of a GTKWave/ModelSim waveform into a report. There are going to be a few settings you can adjust. Usage will be as follows:
 
 ```bash
