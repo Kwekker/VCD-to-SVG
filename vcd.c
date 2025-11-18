@@ -49,9 +49,9 @@ int interpretVCD(FILE *file) {
         printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
         for (size_t j = 0; j < var.value_count; j++) {
             if (var.size == 1)
-                printf("\t %zu: %c\n", j, var.values[j].value_char);
+                printf("\t %3zu: %c\n", j, var.values[j].value_char);
             else
-                printf("\t %zu: %s\n", j, var.values[j].value_string);
+                printf("\t %3zu: %s\n", j, var.values[j].value_string);
         }
     }
 
@@ -134,7 +134,7 @@ void freeVCD(vcd_t vcd) {
         for (size_t i = 0; i < vcd.var_count; i++) {
             var_t *var = vcd.vars + i;
             for (size_t j = 0; j < var->value_count; j++) {
-                if (var->values[j].time) {
+                if (var->size > 1 && var->values[j].value_string != NULL) {
                     free(var->values[j].value_string);
                 }
             }
