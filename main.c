@@ -2,6 +2,10 @@
 #include <stdint.h>
 
 #include "vcd.h"
+#include "svg.h"
+
+
+void handleError(FILE *file, char *file_name, int ret);
 
 int main(int argc, char *argv[]) {
 
@@ -17,9 +21,34 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    int ret = interpretVCD(file);
+    vcd_t vcd = interpretVCD(file);
+    int ret = 0;
+    if (vcd.vars == NULL) ret = vcd.var_count;
 
 
+    if (ret) {
+        handleError(file, argv[1], ret);
+        fclose(file);
+        return -1;
+    }
+
+    svg_settings_t settings = {50, 2, 500, 0, 20, -1};
+    FILE *out_file = fopen("out.svg", "w");
+
+    printf("Outputting svg!!\n");
+    writeSVG(out_file, vcd, settings);
+
+    fclose(out_file);
+
+
+    fclose(file);
+
+    return 0;
+}
+
+
+
+void handleError(FILE* file, char* file_name, int ret) {
     printf("\nReturned with \x1b[31m%d\x1b[0m\n", ret);
 
     long file_pos = ftell(file);
@@ -42,7 +71,7 @@ int main(int argc, char *argv[]) {
         }
     }
     printf("\x1b[31mError happened at \x1b[0m%s:%ld:%ld\n",
-        argv[1], error_line_number, file_pos - last_newline);
+        file_name, error_line_number, file_pos - last_newline);
 
 #if 0 // This doesn't work and I'm kinda sick of it
     // Find the next newline or the end of the file
@@ -69,8 +98,4 @@ int main(int argc, char *argv[]) {
     }
     printf("^\n\n\x1b[0m");
 #endif
-    fclose(file);
-
-    return 0;
 }
-

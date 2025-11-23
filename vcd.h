@@ -24,6 +24,9 @@
 #define ERR_NO_ENDDEFINITIONS_BEFORE_VALUES -15
 #define ERR_VAR_WITH_NO_VALUES -16
 #define ERR_VARIABLE_IS_BIT_BUT_VALUE_IS_VECTOR -17
+#define ERR_COMMAND_IN_COMMAND -18
+#define ERR_NEW_TIME_LESS_THAN_MAX -19
+#define ERR_VALUE_LENGTH_MISMATCH -20
 
 
 
@@ -78,6 +81,7 @@ typedef struct {
     size_t size;
     value_pair_t *values;
     size_t value_count;
+    size_t value_index;
 } var_t;
 
 
@@ -85,14 +89,13 @@ typedef struct {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
     var_t *vars;
     size_t var_count;
-    // Bool to keep track of if all vars->values have been allocated.
-    uint8_t has_allocaded_values;
+    size_t max_time;
 } vcd_t;
 
 
 
 
-int interpretVCD(FILE *file);
+vcd_t interpretVCD(FILE *file);
 void freeVCD(vcd_t vcd);
 
 

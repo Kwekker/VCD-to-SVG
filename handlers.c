@@ -11,9 +11,11 @@ static inline int find_option(
     const char *options, char *buf, int option_count, int option_length
 );
 
+static int countAndAllocateValues(FILE *file, vcd_t *vcd);
 static char *nextArbiLengthToken(FILE *file);
 static int countValues(FILE *file, vcd_t *vcd);
 static var_t *getVarById(vcd_t * restrict vcd, char * restrict id);
+static int handleDump(FILE *file, vcd_t* vcd);
 
 
 // I'm obsessed with using as little dynamic memory as possible.
@@ -49,6 +51,23 @@ int seekEnd(FILE *file) {
     }
 }
 
+//! Warning: not completely comprehensive, but it is fast.
+//  And I don't need a comprehensive one.
+// It doesn't work when you're for example looking for
+// "mimimum" in the string "mimimimum" but none of the $commands are like that.
+int seekString(FILE *file, char* seek) {
+    size_t match_count = 0;
+    while(1) {
+        int new_char = getc(file);
+        if (new_char == EOF) return ERR_FILE_ENDS;
+
+        if (new_char == seek[match_count]) {
+            match_count++;
+        }
+    }
+}
+
+
 int handleComment(FILE *file, vcd_t* vcd) {
     return seekEnd(file);
 }
@@ -56,54 +75,35 @@ int handleDate(FILE *file, vcd_t* vcd) {
     return seekEnd(file);
 }
 int handleEnddefinitions(FILE *file, vcd_t* vcd) {
-    int ret = seekEnd(file);
-    if (ret) return ret;
-
-    // Count how many times each value changes.
-    long file_pos = ftell(file);
-    ret = countValues(file, vcd);
-    if (ret) return ret;
-    fseek(file, file_pos, SEEK_SET);
-
-
-    // Allocate all value arrays.
-    for (size_t i = 0; i < vcd->var_count; i++) {
-        var_t *var = vcd->vars + i;
-        // printf("\x1b[34mvalue count is %zu\x1b[0m\n", var->value_count);
-        if (var->value_count == 0) {
-            printf("Found a variable with out any value definitions!\n");
-            printf("Var %3zu: %s, %s, %zu, %d\n",i,
-                var->id, var->name, var->size, var->type
-            );
-            return ERR_VAR_WITH_NO_VALUES;
-        }
-        var->values = malloc(var->value_count * sizeof(value_pair_t));
-
-        // We don't need to allocate the strings inside the value_pair_t's.
-        // This is done by the tokenizer later on.
-
-        // Set all variables' value count to 0 so they can be used as index.
-        var->value_count = 0;
-    }
-    vcd->has_allocaded_values = 1;
-    return 0;
+    return seekEnd(file);
 }
 int handleScope(FILE *file, vcd_t* vcd) {
     return seekEnd(file); // Not dealing with that yet
+}
+int handleUpscope(FILE *file, vcd_t* vcd) {
+    return seekEnd(file);
 }
 
 
 int handleTimescale(FILE *file, vcd_t* vcd) {
     int c = 0;
-    NEXT_TOKEN(3, buf, ERR_INVALID_TIMESCALE);
+    NEXT_TOKEN(5, buf, ERR_INVALID_TIMESCALE);
 
-    printf("Buf is %s\n", buf);
+    // Apparently this value can have a space in between the number and the unit
+    // Both are valid, which is a bit of a headache.
+    if(buf[0] != '1') return ERR_INVALID_TIMESCALE;
+    uint8_t base_power = 0;
+    while(buf[base_power + 1] == '0') base_power++;
 
-    char values[3][4] = {"1", "10", "100"};
-    int base_power = find_option(values[0], buf, 3, 4);
-    if (base_power == -1) return ERR_INVALID_TIMESCALE;
+    char *unit_buf;
+    if (isspace(buf[base_power + 1])) {
+        NEXT_TOKEN(3, temp_buf, ERR_INVALID_UNIT);
+        unit_buf = temp_buf;
+    }
+    else {
+        unit_buf = buf + base_power + 1;
+    }
 
-    NEXT_TOKEN(3, unit_buf, ERR_INVALID_UNIT);
     printf("Unit buf is %s\n", buf);
     char units[6][3] = {"s", "ms", "us", "ns", "ps", "fs"};
     int unit_power = find_option(units[0], unit_buf, 6, 3);
@@ -118,9 +118,6 @@ int handleTimescale(FILE *file, vcd_t* vcd) {
 }
 
 
-int handleUpscope(FILE *file, vcd_t* vcd) {
-    return seekEnd(file);
-}
 
 
 int handleVar(FILE *file, vcd_t* vcd) {
@@ -160,98 +157,121 @@ int handleVersion(FILE *file, vcd_t* vcd) {
 
 
 int handleDumpall(FILE *file, vcd_t* vcd) {
-    if (vcd->has_allocaded_values == 0) {
-        printf("\x1b[31mNo $enddefinitions before the first value dump!! Aborting!!!\x1b[0m\n");
-        return ERR_NO_ENDDEFINITIONS_BEFORE_VALUES;
-    }
-    printf("Found Dumpall\n");
-    return seekEnd(file);
+    int ret = countAndAllocateValues(file, vcd);
+    if (ret) return ret;
+    return handleDump(file, vcd);
 }
 int handleDumpoff(FILE *file, vcd_t* vcd) {
-    if (vcd->has_allocaded_values == 0) {
-        printf("\x1b[31mNo $enddefinitions before the first value dump!! Aborting!!!\x1b[0m\n");
-        return ERR_NO_ENDDEFINITIONS_BEFORE_VALUES;
-    }
-    printf("Found Dumpoff\n");
-    return 0;
+    int ret = countAndAllocateValues(file, vcd);
+    if (ret) return ret;
+    return handleDump(file, vcd);
 }
 int handleDumpon(FILE *file, vcd_t* vcd) {
-    if (vcd->has_allocaded_values == 0) {
-        printf("\x1b[31mNo $enddefinitions before the first value dump!! Aborting!!!\x1b[0m\n");
-        return ERR_NO_ENDDEFINITIONS_BEFORE_VALUES;
-    }
-    printf("Found Dumpon\n");
-    return 0;
+    int ret = countAndAllocateValues(file, vcd);
+    if (ret) return ret;
+    return handleDump(file, vcd);
+}
+
+int handleDumpvars(FILE *file, vcd_t *vcd) {
+    int ret = countAndAllocateValues(file, vcd);
+    if (ret) return ret;
+    return handleDump(file, vcd);
 }
 
 
-int handleDumpvars(FILE *file, vcd_t* vcd) {
-    if (vcd->has_allocaded_values == 0) {
-        printf("\x1b[31mNo $enddefinitions before the first value dump!! Aborting!!!\x1b[0m\n");
-        return ERR_NO_ENDDEFINITIONS_BEFORE_VALUES;
-    }
-    // Count the amount of value changes for each variable.
-
-    size_t current_time = 0;
+int handleDump(FILE *file, vcd_t* vcd) {
+    size_t current_time = vcd->max_time;
 
     while(1) {
         char *token = nextArbiLengthToken(file);
         if (token == NULL) return 0;
         int first_char = tolower(token[0]);
 
-        if (first_char == '#') {
-            current_time = strtol(token + 1, NULL, 0);
-            free(token);
-        }
-        else if (first_char == 'b') {
-            char *id = nextArbiLengthToken(file);
-            if (id == NULL) {
+        switch(first_char) {
+            case '$':
+                // $ should mean we found a $end.
+                // We should check for this though, just to be sure.
+                if (memcmp(token, "$end", 4) != 0) {
+                    printf("Uhhh %s is not $end?? While handling.\n", token);
+                    return ERR_COMMAND_IN_COMMAND;
+                    free(token);
+                }
                 free(token);
-                return ERR_INVALID_VAR_ID;
-            }
+                return 0;
 
-            var_t *var = getVarById(vcd, id);
-            if (var == NULL) {
+            case '#':
+                current_time = strtol(token + 1, NULL, 0);
+                if (vcd->max_time > current_time)
+                    return ERR_NEW_TIME_LESS_THAN_MAX;
+                vcd->max_time = current_time; // Keep track of the max time.
+                free(token);
+                break;
+
+            case 'b': {
+                char *id = nextArbiLengthToken(file);
+                if (id == NULL) {
+                    free(token);
+                    return ERR_INVALID_VAR_ID;
+                }
+
+                var_t *var = getVarById(vcd, id);
+                if (var == NULL) {
+                    free(id);
+                    free(token);
+                    return ERR_INVALID_VAR_ID;
+                }
+
+                if (var->size <= 1) {
+                    free(token);
+                    free(id);
+                    return ERR_VARIABLE_IS_BIT_BUT_VALUE_IS_VECTOR;
+                }
+
+                size_t token_length = strlen(token);
+                if (token_length != var->size) {
+                    printf("Length %zu of value %s: "
+                        "does not match expected length of %zu of var %s.\n",
+                        token_length, token, var->size, var->id
+                    );
+                    free(token);
+                    free(id);
+                    return ERR_VALUE_LENGTH_MISMATCH;
+                }
+
+                // Remove the pesky 'b' in front of the value
+                memmove(token, token + 1, token_length);
+                // I honestly don't think the memory gain of 1 byte per value
+                // is worth the performance loss of reallocing every single time
+
+                var->values[var->value_index].value_string = token;
+                var->values[var->value_index].time = current_time;
+                var->value_index++;
                 free(id);
-                free(token);
-                return ERR_INVALID_VAR_ID;
+                break;
             }
-
-            if (var->size <= 1) {
+            case 'r':
                 free(token);
-                free(id);
-                return ERR_VARIABLE_IS_BIT_BUT_VALUE_IS_VECTOR;
+                return ERR_NOT_YET_IMPLEMENTED;
+
+            case '0':
+            case '1':
+            case 'x':
+            case 'z': {
+                var_t *var = getVarById(vcd, token + 1);
+                if (var == NULL) return ERR_INVALID_VAR_ID;
+
+                var->values[var->value_index].value_char = first_char;
+                var->values[var->value_index].time = current_time;
+                var->value_index++;
+                free(token);
+                break;
             }
-
-            // Remove the pesky 'b' in front of the value
-            memmove(token, token + 1, var->size + 1);
-            // I honestly don't think the memory gain of 1 byte per value
-            // is worth the performance loss of reallocing every single time.
-
-            // fprintf(stderr, "Setting value string to token. var is %zu\n", var->size);
-            var->values[var->value_count].value_string = token;
-            var->values[var->value_count].time = current_time;
-            var->value_count++;
-            free(id);
-        }
-        else if (first_char == 'r') {
-            free(token);
-            return ERR_NOT_YET_IMPLEMENTED;
-        }
-        else if (strchr("01xz", first_char) != NULL) {
-
-            var_t *var = getVarById(vcd, token + 1);
-            if (var == NULL) return ERR_INVALID_VAR_ID;
-
-            var->values[var->value_count].value_char = first_char;
-            var->values[var->value_count].time = current_time;
-            var->value_count++;
-            free(token);
-        }
-        else {
-            printf("idk what I'm supposed to do with %c\n", first_char);
-            free(token);
-            return ERR_INVALID_DUMP;
+            default:
+                // Proper error messages will come one day.
+                printf("idk what I'm supposed to do with %c while handling\n",
+                    first_char);
+                free(token);
+                return ERR_INVALID_DUMP;
         }
     }
 
@@ -261,9 +281,10 @@ int handleDumpvars(FILE *file, vcd_t* vcd) {
 
 // Perform a counting pass over the variable part of the file to count how many
 // value changes each value has to endure.
-// This function is very similar to handleDumpVars
+// This function is very similar to handleDumpVars. Still different enough
+// to be its own function though. C is not versatile enough
+// to efficiently and readably combine these two functions. (As far as I know.)
 static int countValues(FILE *file, vcd_t *vcd) {
-    printf("Counting values!!\n");
 
     while(1) {
 
@@ -271,44 +292,106 @@ static int countValues(FILE *file, vcd_t *vcd) {
         if (token == NULL) return 0;
         int first_char = tolower(token[0]);
 
-        if (first_char == '#' || first_char == '$') {
-            free(token);
-        }
-        else if (first_char == 'b') {
-            char *id = nextArbiLengthToken(file);
-            if (id == NULL) {
+        switch (first_char) {
+            // "mimimi using more than 3 layers of indentation is wrong!!!"
+            // Is what people who don't use double indentation in a switch
+            // statement like a civilized human being say.
+            // K&R can suck it.
+            // (Jk of course, K&R may not be disrespected, my apologies.)
+            case '$':
+                // $ should mean we found a $end.
+                // We should check for this though, just to be sure.
+                if (memcmp(token, "$end", 4) != 0) {
+                    printf("Uhhh %s is not $end?? While counting.\n", token);
+                    return ERR_COMMAND_IN_COMMAND;
+                    free(token);
+                }
                 free(token);
-                return ERR_INVALID_VAR_ID;
-            }
-            var_t *var = getVarById(vcd, id);
-            if (var == NULL) {
+                return 0;
+
+            case '#':
+                free(token);
+                break;
+
+            case 'b': {
+                char *id = nextArbiLengthToken(file);
+                if (id == NULL) {
+                    free(token);
+                    return ERR_INVALID_VAR_ID;
+                }
+                var_t *var = getVarById(vcd, id);
+                if (var == NULL) {
+                    free(id);
+                    free(token);
+                    return ERR_INVALID_VAR_ID;
+                }
+                var->value_count++;
                 free(id);
                 free(token);
-                return ERR_INVALID_VAR_ID;
+                break;
             }
-            var->value_count++;
-            free(id);
-            free(token);
-        }
-        else if (first_char == 'r') {
-            free(token);
-            return ERR_NOT_YET_IMPLEMENTED;
-        }
-        else if (strchr("01xz", first_char) != NULL) {
-            var_t *var = getVarById(vcd, token + 1);
-            if (var == NULL) {
+            case 'r':
                 free(token);
-                return ERR_INVALID_VAR_ID;
+                return ERR_NOT_YET_IMPLEMENTED;
+
+            case '0':
+            case '1':
+            case 'x':
+            case 'z': {
+                var_t *var = getVarById(vcd, token + 1);
+                if (var == NULL) {
+                    free(token);
+                    return ERR_INVALID_VAR_ID;
+                }
+                var->value_count++;
+                free(token);
+                break;
             }
-            var->value_count++;
-            free(token);
-        }
-        else {
-            printf("idk what I'm supposed to do with %c\n", first_char);
-            free(token);
-            return ERR_INVALID_DUMP;
+            default:
+                printf("idk what I'm supposed to do with %c while counting\n",
+                    first_char);
+                free(token);
+                char *next_token = nextArbiLengthToken(file);
+                printf("FYI the next token was %s\n", next_token);
+                free(next_token);
+                return ERR_INVALID_DUMP;
         }
     }
+}
+
+// Wrapper function that uses countValues
+// and then allocates the arrays in vcd->vars->valus.
+static int countAndAllocateValues(FILE *file, vcd_t *vcd) {
+    // Count how many times each value changes.
+    long file_pos = ftell(file);
+    int ret = countValues(file, vcd);
+    if (ret) return ret;
+    fseek(file, file_pos, SEEK_SET);
+
+
+    // Allocate or reallocate all value arrays.
+    // This function can be run multiple times if there's multiple
+    // dump commands in the file. That's why we need a realloc here.
+
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        var_t *var = vcd->vars + i;
+        if (var->value_count == 0) continue;
+
+        if (var->values == NULL) {
+            var->values = malloc(var->value_count * sizeof(value_pair_t));
+        }
+        else {
+            var->values = realloc(
+                var->values, var->value_count * sizeof(value_pair_t)
+            );
+        }
+
+    }
+
+
+    // We don't need to allocate the strings inside the value_pair_t's.
+    // This is done by the tokenizer later on.
+    return 0;
 }
 
 

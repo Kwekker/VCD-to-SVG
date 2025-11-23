@@ -14,19 +14,22 @@ static int interpretCommand(FILE *file, vcd_t* vcd);
 static size_t countVars(FILE *file);
 
 
-int interpretVCD(FILE *file) {
+vcd_t interpretVCD(FILE *file) {
 
 
     vcd_t vcd = {0};
 
     size_t var_count = countVars(file);
     printf("Counted %zu vars\n", var_count);
-    if (var_count == 0) return ERR_NO_VARS;
+    if (var_count == 0) {
+        vcd.var_count = ERR_NO_VARS;
+        return vcd;
+    }
 
     // Keep this at 0 so that it can be used as an index.
     vcd.var_count = 0;
     // No overflows should be possible because we're allocating enough here.
-    vcd.vars = malloc(sizeof(var_t) * var_count);
+    vcd.vars = calloc(var_count, sizeof(var_t));
 
     while(1) {
         int new_char = getc(file);
@@ -36,28 +39,44 @@ int interpretVCD(FILE *file) {
             int ret = interpretCommand(file, &vcd);
             if (ret) {
                 freeVCD(vcd);
-                return ret;
+                vcd.vars = NULL;
+                vcd.var_count = ret;
+                return vcd;
             }
         }
-
-    }
-
-    printf("\n\n");
-    for (size_t i = 0; i < vcd.var_count; i++) {
-        var_t var = vcd.vars[i];
-
-        printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
-        for (size_t j = 0; j < var.value_count; j++) {
-            if (var.size == 1)
-                printf("\t %3zu: %c\n", j, var.values[j].value_char);
-            else
-                printf("\t %3zu: %s\n", j, var.values[j].value_string);
+        if (new_char == '#') {
+            do {new_char = getc(file);} while(isspace(new_char));
+            char token[32] = {0};
+            char *c = token;
+            while(!isspace(new_char)) {
+                *c = new_char;
+                new_char = getc(file);
+            }
+            size_t time = strtol(token, NULL, 0);
+            if (vcd.max_time > time) {
+                vcd.vars = NULL;
+                vcd.var_count = ERR_NEW_TIME_LESS_THAN_MAX;
+                return vcd;
+            }
+            vcd.max_time = time;
         }
+
     }
 
-    freeVCD(vcd);
+    // printf("\n\n");
+    // for (size_t i = 0; i < vcd.var_count; i++) {
+    //     var_t var = vcd.vars[i];
 
-    return 0;
+    //     printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
+    //     for (size_t j = 0; j < var.value_count; j++) {
+    //         if (var.size == 1)
+    //             printf("\t %3zu: %c\n", j, var.values[j].value_char);
+    //         else
+    //             printf("\t %3zu: %s\n", j, var.values[j].value_string);
+    //     }
+    // }
+
+    return vcd;
 }
 
 
@@ -130,16 +149,18 @@ static size_t countVars(FILE *file) {
 
 
 void freeVCD(vcd_t vcd) {
-    if (vcd.has_allocaded_values) {
+    if (vcd.vars != NULL) {
         for (size_t i = 0; i < vcd.var_count; i++) {
             var_t *var = vcd.vars + i;
-            for (size_t j = 0; j < var->value_count; j++) {
+            if (var->values == NULL) continue;
+            for (size_t j = 0; j < var->value_index; j++) {
                 if (var->size > 1 && var->values[j].value_string != NULL) {
                     free(var->values[j].value_string);
                 }
             }
-
-            free(var->values);
+            if (var->value_count) {
+                free(var->values);
+            }
         }
     }
     free(vcd.vars);
