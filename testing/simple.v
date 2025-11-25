@@ -7,7 +7,7 @@ module simple (
 
     reg [7:0] store;
 
-    assign data_out = 8'd15; //store + 8'd15 + data_in;
+    assign data_out = store + 8'd15 + data_in; //store + 8'd15 + data_in;
 
     always @(posedge clock) begin
         store <= data_in;

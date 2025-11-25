@@ -20,8 +20,6 @@ module simple_tb ();
         end
     end
 
-    integer i = 0;
-
     initial begin
         $dumpfile("signals.vcd"); // Name of the signal dump file
         $dumpvars(0); // Signals to dump
