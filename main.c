@@ -32,12 +32,19 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    svg_settings_t settings = {50, 2, 500, 0, 20, -1};
+    svg_settings_t settings = {
+        .height         = 10,
+        .slope_width    = 0.7,
+        .waveform_width = 500,
+        .image_width    = 0,
+        .margin         = 20,
+        .max_time       = -1
+    };
     FILE *out_file = fopen("out.svg", "w");
 
     printf("Outputting svg!!\n");
     writeSVG(out_file, vcd, settings);
-
+    freeVCD(vcd);
     fclose(out_file);
 
 

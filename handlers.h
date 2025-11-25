@@ -18,5 +18,7 @@ int handleDumpoff(FILE *file, vcd_t* vcd);
 int handleDumpon(FILE *file, vcd_t* vcd);
 int handleDumpvars(FILE *file, vcd_t* vcd);
 
+int handleValueChange(FILE *file, vcd_t *vcd);
+
 
 #endif

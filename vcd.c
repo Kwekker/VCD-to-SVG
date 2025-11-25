@@ -35,6 +35,7 @@ vcd_t interpretVCD(FILE *file) {
         int new_char = getc(file);
 
         if (new_char == EOF) break;
+        if (isspace(new_char)) continue;
         if (new_char == '$') {
             int ret = interpretCommand(file, &vcd);
             if (ret) {
@@ -44,21 +45,35 @@ vcd_t interpretVCD(FILE *file) {
                 return vcd;
             }
         }
-        if (new_char == '#') {
+        else if (new_char == '#') {
             do {new_char = getc(file);} while(isspace(new_char));
-            char token[32] = {0};
+            char token[64] = {0};
             char *c = token;
             while(!isspace(new_char)) {
                 *c = new_char;
                 new_char = getc(file);
+                c++;
             }
             size_t time = strtol(token, NULL, 0);
             if (vcd.max_time > time) {
+                printf("New time is %zu, but previous time was %zu.",
+                    time, vcd.max_time);
                 vcd.vars = NULL;
                 vcd.var_count = ERR_NEW_TIME_LESS_THAN_MAX;
                 return vcd;
             }
             vcd.max_time = time;
+        }
+        else {
+            // Go back by one because handleValueChange
+            // expects to be on the first character.
+            fseek(file, -1, SEEK_CUR);
+            int ret = handleValueChange(file, &vcd);
+            if (ret) {
+                vcd.vars = NULL;
+                vcd.var_count = ret;
+                return vcd;
+            }
         }
 
     }
@@ -152,10 +167,12 @@ void freeVCD(vcd_t vcd) {
     if (vcd.vars != NULL) {
         for (size_t i = 0; i < vcd.var_count; i++) {
             var_t *var = vcd.vars + i;
-            if (var->values == NULL) continue;
-            for (size_t j = 0; j < var->value_index; j++) {
-                if (var->size > 1 && var->values[j].value_string != NULL) {
-                    free(var->values[j].value_string);
+            if (var->values == NULL || var->copy_of != NULL) continue;
+            if (var->size > 1) {
+                for (size_t j = 0; j < var->value_count; j++) {
+                    if (var->values[j].value_string != NULL) {
+                        free(var->values[j].value_string);
+                    }
                 }
             }
             if (var->value_count) {

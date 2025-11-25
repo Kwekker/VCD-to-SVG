@@ -29,9 +29,6 @@
 #define ERR_VALUE_LENGTH_MISMATCH -20
 
 
-
-
-
 #define CHAR_BUF_SIZE 1024
 #define COMMAND_COUNT 12
 #define MAX_ID_LENGTH 20
@@ -74,7 +71,7 @@ typedef struct {
 } value_pair_t;
 
 
-typedef struct {
+typedef struct var_s {
     char id[MAX_ID_LENGTH];
     char name[MAX_NAME_LENGTH];
     uint8_t type;
@@ -82,6 +79,7 @@ typedef struct {
     value_pair_t *values;
     size_t value_count;
     size_t value_index;
+    struct var_s *copy_of;
 } var_t;
 
 

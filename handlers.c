@@ -1,5 +1,7 @@
 #include "handlers.h"
 #include "vcd.h"
+
+#include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -75,7 +77,9 @@ int handleDate(FILE *file, vcd_t* vcd) {
     return seekEnd(file);
 }
 int handleEnddefinitions(FILE *file, vcd_t* vcd) {
-    return seekEnd(file);
+    int ret = seekEnd(file);
+    if(ret) return ret;
+    return countAndAllocateValues(file, vcd);
 }
 int handleScope(FILE *file, vcd_t* vcd) {
     return seekEnd(file); // Not dealing with that yet
@@ -141,6 +145,16 @@ int handleVar(FILE *file, vcd_t* vcd) {
     NEXT_TOKEN(MAX_ID_LENGTH, id_buf, ERR_INVALID_ID);
     strcpy(var.id, id_buf);
 
+    // Check if this id already exists.
+    // That's allowed btw. The value are the same though,
+    // so we store duplicates with the copy_of pointer set.
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        if (strcmp(vcd->vars[i].id, var.id) == 0) {
+            var.copy_of = vcd->vars + i;
+            break;
+        }
+    }
+
     NEXT_TOKEN(MAX_NAME_LENGTH, name_buf, ERR_INVALID_NAME);
     strcpy(var.name, name_buf);
 
@@ -157,122 +171,159 @@ int handleVersion(FILE *file, vcd_t* vcd) {
 
 
 int handleDumpall(FILE *file, vcd_t* vcd) {
-    int ret = countAndAllocateValues(file, vcd);
-    if (ret) return ret;
     return handleDump(file, vcd);
 }
 int handleDumpoff(FILE *file, vcd_t* vcd) {
-    int ret = countAndAllocateValues(file, vcd);
-    if (ret) return ret;
     return handleDump(file, vcd);
 }
 int handleDumpon(FILE *file, vcd_t* vcd) {
-    int ret = countAndAllocateValues(file, vcd);
-    if (ret) return ret;
     return handleDump(file, vcd);
 }
 
 int handleDumpvars(FILE *file, vcd_t *vcd) {
-    int ret = countAndAllocateValues(file, vcd);
-    if (ret) return ret;
     return handleDump(file, vcd);
 }
 
 
-int handleDump(FILE *file, vcd_t* vcd) {
-    size_t current_time = vcd->max_time;
-
+int handleDump(FILE *file, vcd_t *vcd) {
     while(1) {
-        char *token = nextArbiLengthToken(file);
-        if (token == NULL) return 0;
-        int first_char = tolower(token[0]);
+        int ret = handleValueChange(file, vcd);
+        if (ret == 1) return 0;
+        if (ret) return ret;
+    }
+}
 
-        switch(first_char) {
-            case '$':
-                // $ should mean we found a $end.
-                // We should check for this though, just to be sure.
-                if (memcmp(token, "$end", 4) != 0) {
-                    printf("Uhhh %s is not $end?? While handling.\n", token);
-                    return ERR_COMMAND_IN_COMMAND;
-                    free(token);
-                }
+
+int handleValueChange(FILE *file, vcd_t *vcd) {
+    char *token = nextArbiLengthToken(file);
+    if (token == NULL) return 0;
+
+
+
+    switch(token[0]) {
+        case '$':
+            // $ should mean we found a $end.
+            // We should check for this though, just to be sure.
+            if (memcmp(token, "$end", 4) != 0) {
+                printf("Uhhh %s is not $end?? While handling.\n", token);
+                return ERR_COMMAND_IN_COMMAND;
                 free(token);
-                return 0;
+            }
+            free(token);
+            return 1; // This signifies to the parent function that we're done.
 
-            case '#':
-                current_time = strtol(token + 1, NULL, 0);
-                if (vcd->max_time > current_time)
-                    return ERR_NEW_TIME_LESS_THAN_MAX;
-                vcd->max_time = current_time; // Keep track of the max time.
+        case '#': {
+            size_t current_time = strtol(token + 1, NULL, 0);
+            if (vcd->max_time > current_time)
+                return ERR_NEW_TIME_LESS_THAN_MAX;
+            vcd->max_time = current_time; // Keep track of the max time.
+            free(token);
+            break;
+        }
+
+        case 'b': {
+            char *id = nextArbiLengthToken(file);
+            if (id == NULL) {
                 free(token);
-                break;
+                printf("Couln't find a var id.\n");
+                return ERR_INVALID_VAR_ID;
+            }
 
-            case 'b': {
-                char *id = nextArbiLengthToken(file);
-                if (id == NULL) {
-                    free(token);
-                    return ERR_INVALID_VAR_ID;
+            var_t *var = getVarById(vcd, id);
+            if (var == NULL) {
+                printf("I don't know any vars with id %s\n", id);
+                free(id);
+                free(token);
+                return ERR_INVALID_VAR_ID;
+            }
+
+            if (var->size <= 1) {
+                free(token);
+                free(id);
+                return ERR_VARIABLE_IS_BIT_BUT_VALUE_IS_VECTOR;
+            }
+
+            // -1 to not take the b into account
+            size_t token_length = strlen(token) - 1;
+
+            // VCD's can have the following line:
+            // bx varid
+            // Where 'varid' is the variable id of a variable that is a
+            // vector, so with a size of more than 1. You're supposed to
+            // left-extend it.
+            // 0 and 1 are left-extended with 0's
+            // Z and X are left-extended with copies of themselves.
+            if (token_length == 2 && var->size != 1) {
+                char *s = malloc(var->size + 1);
+                memcpy(s + var->size - token_length, token + 1, token_length);
+                char extender = '0';
+                if (token[1] != '0' && token[1] != '1') {
+                    extender = token[1];
                 }
+                memset(s, extender, var->size - token_length);
+                s[var->size] = '\0';
 
-                var_t *var = getVarById(vcd, id);
-                if (var == NULL) {
-                    free(id);
-                    free(token);
-                    return ERR_INVALID_VAR_ID;
-                }
-
-                if (var->size <= 1) {
-                    free(token);
-                    free(id);
-                    return ERR_VARIABLE_IS_BIT_BUT_VALUE_IS_VECTOR;
-                }
-
-                size_t token_length = strlen(token);
-                if (token_length != var->size) {
-                    printf("Length %zu of value %s: "
-                        "does not match expected length of %zu of var %s.\n",
-                        token_length, token, var->size, var->id
-                    );
-                    free(token);
-                    free(id);
-                    return ERR_VALUE_LENGTH_MISMATCH;
-                }
-
-                // Remove the pesky 'b' in front of the value
-                memmove(token, token + 1, token_length);
-                // I honestly don't think the memory gain of 1 byte per value
-                // is worth the performance loss of reallocing every single time
-
-                var->values[var->value_index].value_string = token;
-                var->values[var->value_index].time = current_time;
+                // Now move that cool new string into the var.
+                var->values[var->value_index].value_string = s;
+                var->values[var->value_index].time = vcd->max_time;
                 var->value_index++;
+
+                // Free token here because it can't be used directly
+                // as the value. (We malloced another string for that.)
+                free(token);
                 free(id);
                 break;
             }
-            case 'r':
+            if (token_length > var->size) {
+                printf("Length %zu of value %s "
+                    "is longer than length %zu of var %s.\n",
+                    token_length, token, var->size, var->id
+                );
                 free(token);
-                return ERR_NOT_YET_IMPLEMENTED;
-
-            case '0':
-            case '1':
-            case 'x':
-            case 'z': {
-                var_t *var = getVarById(vcd, token + 1);
-                if (var == NULL) return ERR_INVALID_VAR_ID;
-
-                var->values[var->value_index].value_char = first_char;
-                var->values[var->value_index].time = current_time;
-                var->value_index++;
-                free(token);
-                break;
+                free(id);
+                return ERR_VALUE_LENGTH_MISMATCH;
             }
-            default:
-                // Proper error messages will come one day.
-                printf("idk what I'm supposed to do with %c while handling\n",
-                    first_char);
-                free(token);
-                return ERR_INVALID_DUMP;
+
+            // Remove the pesky 'b' in front of the value
+            memmove(token, token + 1, token_length + 1); // + 1 for '\0'.
+            // I honestly don't think the memory gain of 1 byte per value
+            // is worth the performance loss of reallocing every single time
+
+            // Token is used as the allocated string array,
+            // so no free is necessary.
+            var->values[var->value_index].value_string = token;
+            var->values[var->value_index].time = vcd->max_time;
+            var->value_index++;
+            free(id);
+            break;
         }
+        case 'r':
+            free(token);
+            return ERR_NOT_YET_IMPLEMENTED;
+
+        case '0':
+        case '1':
+        case 'x':
+        case 'z': {
+            var_t *var = getVarById(vcd, token + 1);
+            if (var == NULL) {
+                printf("I don't know any vars with id %s\n", token + 1);
+                return ERR_INVALID_VAR_ID;
+            }
+
+
+            var->values[var->value_index].value_char = token[0];
+            var->values[var->value_index].time = vcd->max_time;
+            var->value_index++;
+            free(token);
+            break;
+        }
+        default:
+            // Proper error messages will come one day.
+            printf("idk what I'm supposed to do with %c while handling\n",
+                token[0]);
+            free(token);
+            return ERR_INVALID_DUMP;
     }
 
     return 0;
@@ -292,22 +343,44 @@ static int countValues(FILE *file, vcd_t *vcd) {
         if (token == NULL) return 0;
         int first_char = tolower(token[0]);
 
+
         switch (first_char) {
             // "mimimi using more than 3 layers of indentation is wrong!!!"
             // Is what people who don't use double indentation in a switch
             // statement like a civilized human being say.
             // K&R can suck it.
             // (Jk of course, K&R may not be disrespected, my apologies.)
-            case '$':
-                // $ should mean we found a $end.
-                // We should check for this though, just to be sure.
-                if (memcmp(token, "$end", 4) != 0) {
-                    printf("Uhhh %s is not $end?? While counting.\n", token);
-                    return ERR_COMMAND_IN_COMMAND;
-                    free(token);
+            case '$': {
+                // $ means we found a command.
+                // If it's a dump command, continue. If not, skip it.
+
+                char dumpcommands[5][9] = {
+                    "dumpall", "dumpoff", "dumpon", "dumpvars", "end"
+                };
+                uint8_t is_dump_command = 0;
+                for (uint8_t i = 0; i < 5; i++) {
+                    if (strcmp(token + 1, dumpcommands[i]) == 0) {
+                        is_dump_command = 1;
+                        break;
+                    }
                 }
+
+                if (is_dump_command) {
+                    free(token);
+
+                    // `break` breaks out of the switch statement,
+                    // thus continuing the while loop.
+                    break;
+                }
+
+                // I'm not checking if the command is valid,
+                // nor am I interpreting commands from this point onward.
+                // The only ones that can show up are irrelevant (like comments)
                 free(token);
-                return 0;
+                int ret = seekEnd(file);
+                if (ret) return ret;
+                break;
+            }
 
             case '#':
                 free(token);
@@ -369,23 +442,21 @@ static int countAndAllocateValues(FILE *file, vcd_t *vcd) {
     fseek(file, file_pos, SEEK_SET);
 
 
-    // Allocate or reallocate all value arrays.
-    // This function can be run multiple times if there's multiple
-    // dump commands in the file. That's why we need a realloc here.
-
     for (size_t i = 0; i < vcd->var_count; i++) {
         var_t *var = vcd->vars + i;
-        if (var->value_count == 0) continue;
-
-        if (var->values == NULL) {
-            var->values = malloc(var->value_count * sizeof(value_pair_t));
+        if (var->value_count == 0 && var->copy_of == NULL) {
+            printf("Var %s:%s never gets a value!!\n", var->name, var->id);
+            return ERR_VAR_WITH_NO_VALUES;
         }
-        else {
-            var->values = realloc(
-                var->values, var->value_count * sizeof(value_pair_t)
-            );
+        else if (var->value_count == 0 && var->copy_of != NULL) {
+            continue;
         }
 
+        if (var->values != NULL) {
+            printf("Value already allocated???\n");
+            return ERR_IDK;
+        }
+        var->values = malloc(var->value_count * sizeof(value_pair_t));
     }
 
 
