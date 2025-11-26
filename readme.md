@@ -55,7 +55,7 @@ But a much easier way is to name the yaml file `vcd2svgstyle.yaml` and place it 
 # Building
 If you don't trust my binary and want to compile the code yourself (fair), or if you want the absolute newest version (also fair), then you can compile the code like this:
 1. Install [libcyaml](https://github.com/tlsa/libcyaml)
-  1. Make sure to follow the instructions on how to do it
-  2. Run `ldconfig` afterwards to update your shared libraries!!
+    1. Make sure to follow the instructions on how to do it
+    2. Run `ldconfig` afterwards to update your shared libraries!!
 2. Clone this repository if you haven't already
 3. Run `make`
