@@ -1,0 +1,1 @@
+inkscape --export-area-drawing --export-overwrite $1
