@@ -18,6 +18,9 @@ static char *nextArbiLengthToken(FILE *file);
 static int countValues(FILE *file, vcd_t *vcd);
 static var_t *getVarById(vcd_t * restrict vcd, char * restrict id);
 static int handleDump(FILE *file, vcd_t* vcd);
+static inline char *leftExtend(
+    size_t token_length, size_t var_length, char *token
+);
 
 
 // I'm obsessed with using as little dynamic memory as possible.
@@ -146,7 +149,7 @@ int handleVar(FILE *file, vcd_t* vcd) {
     strcpy(var.id, id_buf);
 
     // Check if this id already exists.
-    // That's allowed btw. The value are the same though,
+    // That's allowed btw. The values are the same though,
     // so we store duplicates with the copy_of pointer set.
     for (size_t i = 0; i < vcd->var_count; i++) {
         if (strcmp(vcd->vars[i].id, var.id) == 0) {
@@ -246,30 +249,17 @@ int handleValueChange(FILE *file, vcd_t *vcd) {
             // -1 to not take the b into account
             size_t token_length = strlen(token) - 1;
 
-            // VCD's can have the following line:
-            // bx varid
-            // Where 'varid' is the variable id of a variable that is a
-            // vector, so with a size of more than 1. You're supposed to
-            // left-extend it.
-            // 0 and 1 are left-extended with 0's
-            // Z and X are left-extended with copies of themselves.
-            if (token_length == 2 && var->size != 1) {
-                char *s = malloc(var->size + 1);
-                memcpy(s + var->size - token_length, token + 1, token_length);
-                char extender = '0';
-                if (token[1] != '0' && token[1] != '1') {
-                    extender = token[1];
-                }
-                memset(s, extender, var->size - token_length);
-                s[var->size] = '\0';
+
+            if (token_length < var->size) {
+                char *new_value = leftExtend(token_length, var->size, token);
 
                 // Now move that cool new string into the var.
-                var->values[var->value_index].value_string = s;
+                var->values[var->value_index].value_string = new_value;
                 var->values[var->value_index].time = vcd->max_time;
                 var->value_index++;
 
                 // Free token here because it can't be used directly
-                // as the value. (We malloced another string for that.)
+                // as the value. (leftExtend malloced another string for that.)
                 free(token);
                 free(id);
                 break;
@@ -327,6 +317,30 @@ int handleValueChange(FILE *file, vcd_t *vcd) {
     }
 
     return 0;
+}
+
+
+// VCD's can have the following line:
+// bx varid
+// Where 'varid' is the variable id of a variable that is a
+// vector, so with a size of more than 1.
+// You're supposed to left-extend it.
+// 0 and 1 are left-extended with 0's
+// Z and X are left-extended with copies of themselves.
+static inline char *leftExtend(
+    size_t token_length, size_t var_length, char *token
+) {
+    printf("Extending %s of size %zu to size %zu\n", token, token_length, var_length);
+    char *s = malloc(var_length + 1);
+    memcpy(s + var_length - token_length, token + 1, token_length);
+    char extender = '0';
+    if (token[1] != '0' && token[1] != '1') {
+        extender = token[1];
+    }
+    memset(s, extender, var_length - token_length);
+    s[var_length] = '\0';
+    printf("Extended to %s\n", s);
+    return s;
 }
 
 

@@ -57,7 +57,7 @@ void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_i
         var.id, var.name
     );
 
-    printf("Yeah %s has %zu values\n", var.name, var.value_count);
+    printf("%s has %zu values\n", var.name, var.value_count);
 
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n");
     fprintf(file, "id=\"waveform_%ld\"\n", ftell(file));
@@ -86,7 +86,12 @@ void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_i
         value_pair_t val = var.values[j];
         if (val.time > sett.max_time) break;
 
+
         uint8_t is_zero = isZero(val.value_string);
+        printf("\tValue %zu is %s %s %s\n", j, val.value_string,
+            is_zero ? "is zero!!" : "",
+            was_zero ? "was zero!!" : ""
+        );
 
         // Continue if the value didn't change.
         if (is_zero && was_zero) continue;
@@ -104,20 +109,18 @@ void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_i
         //   3. Transition from 0 to a value
 
         if (is_zero) { // From a value to zero
-            // Bottom line that does a little /\ at the bottom
-            fprintf(file, "H %f L %f %f L %f %f ",
-                // x
+            printf("Drawing the is zero case!!\n");
+            // Bottom line that ends  in the middle of /
+            fprintf(file, "\nH %f L %f %f ",
                 xs*val.time - sett.slope_width / 2.0,
-                // x, y
-                xs*val.time, start_pos_y + sett.height / 2.0,
-                xs*val.time + sett.slope_width / 2.0, start_pos_y
+                xs*val.time, start_pos_y + sett.height / 2.0
             );
 
             // Top line that goes down like ‾‾‾‾\_
             fprintf(file, "M %f %f H %f L %f %f ",
                 xs*prev_time + sett.slope_width / 2.0, start_pos_y,
                 xs*val.time - sett.slope_width / 2.0,
-                xs*val.time + sett.slope_width / 2.0, start_pos_y
+                xs*val.time + sett.slope_width / 2.0, start_pos_y + sett.height
             );
         }
         else if (!is_zero && !was_zero) { // From a value to another value
@@ -139,13 +142,12 @@ void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_i
             // Bottom line that goes up like ____/‾
             fprintf(file, "H %f L %f %f ",
                 xs*val.time - sett.slope_width / 2.0,
-                xs*val.time + sett.slope_width / 2.0,
-                start_pos_y
+                xs*val.time + sett.slope_width / 2.0, start_pos_y
             );
-            // Top line that goes down like      \_
+            // Bottom line that goes down like    \_
             // It starts at the midpoint of the diagonal line.
             fprintf(file, "M %f %f L %f %f ",
-                xs*val.time + sett.slope_width / 2.0, start_pos_y / 2.0,
+                xs*val.time, start_pos_y + sett.height / 2.0,
                 xs*val.time + sett.slope_width / 2.0, start_pos_y + sett.height
             );
         }
@@ -223,7 +225,10 @@ void outputBitSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_inde
 
 
 static inline uint8_t isZero(char *val) {
-    while(*(val++)) if (*val != '0') return 0;
+    while(*val) {
+        if (*val != '0') return 0;
+        val++;
+    }
     return 1;
 }
 
