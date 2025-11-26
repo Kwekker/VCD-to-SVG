@@ -33,12 +33,12 @@ int main(int argc, char *argv[]) {
     }
 
     svg_settings_t settings = {
-        .height         = 10,
-        .slope_width    = 0.7,
-        .waveform_width = 500,
-        .image_width    = 0,
-        .margin         = 20,
-        .max_time       = -1
+        .height         = 1,
+        .slope_width    = 0.1,
+        .waveform_width = 100,
+        .margin         = 1.5,
+        .line_thickness = 0.1,
+        .max_time       = 0
     };
     FILE *out_file = fopen("out.svg", "w");
 

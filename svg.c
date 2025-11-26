@@ -1,27 +1,34 @@
 #include "svg.h"
 #include "vcd.h"
 #include <ctype.h>
+#include <stdio.h>
 #include <string.h>
 
 
 
-#define DEFAULT_STROKE_STYLE "fill:none;stroke:#000000;stroke-width:.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+#define DEFAULT_STROKE_STYLE "stroke-width:%f;fill:none;stroke:#000000;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
 
 void outputBitSignal(FILE* file, var_t var, svg_settings_t settings, uint32_t y_index);
 void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index);
 static inline uint8_t isZero(char *val);
 
 void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
-    double width = 100;
-    double height = 100;
 
     // Make sure we don't draw a bunch of empty space.
     if (settings.max_time > vcd.max_time) settings.max_time = vcd.max_time;
+    if (settings.max_time == 0) settings.max_time = vcd.max_time;
+
+    // Calculate viewbox
+    if (settings.waveform_width == 0) settings.waveform_width = settings.max_time;
+    double width = settings.waveform_width;
+    double height = // No margin below the bottom signal.
+        vcd.var_count * (settings.height + settings.margin) - settings.margin;
+
 
     fprintf(file,
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
         "<!-- Created with VCD-to-SVG converter (https://www.github.com/kwekker/vcd-to-svg/) -->\n"
-        "<svg width=\"%f\" height=\"%f\" viewBox=\"0 0 %f %f\" version=\"1.1\" "
+        "<svg width=\"%fmm\" height=\"%fmm\" viewBox=\"0 0 %f %f\" version=\"1.1\" "
         "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "
         "xmlns=\"http://www.w3.org/2000/svg\" "
         "xmlns:svg=\"http://www.w3.org/2000/svg\">\n\t",
@@ -53,20 +60,22 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
 void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) {
     // Make the SVG nicer to work with in inkscape by setting a label.
-    fprintf(file, "<g id=\"var_%s\" inkscape:label=\"%s\">\n",
-        var.id, var.name
+    fprintf(file, "<g id=\"var_%ld\" inkscape:label=\"%s\">\n",
+        ftell(file), var.name
     );
 
     printf("%s has %zu values\n", var.name, var.value_count);
 
-    fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n");
+    fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
+        sett.line_thickness
+    );
     fprintf(file, "id=\"waveform_%ld\"\n", ftell(file));
     fprintf(file, "inkscape:label=\"vector waveform\"\n");
 
 
     double start_pos_y = y_index * (sett.height + sett.margin);
     double start_pos_x = -sett.slope_width / 2;
-    double xs = 10; // TODO: scaling
+    double xs = sett.waveform_width / sett.max_time;
 
     // current_state is 0 if all values are 0, otherwise it is 1.
     // It's used for drawing the waveform,
@@ -111,7 +120,7 @@ void outputVectorSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_i
         if (is_zero) { // From a value to zero
             printf("Drawing the is zero case!!\n");
             // Bottom line that ends  in the middle of /
-            fprintf(file, "\nH %f L %f %f ",
+            fprintf(file, "H %f L %f %f ",
                 xs*val.time - sett.slope_width / 2.0,
                 xs*val.time, start_pos_y + sett.height / 2.0
             );
@@ -181,7 +190,7 @@ void outputBitSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_inde
 
     value_pair_t *val = var.values;
 
-    fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n");
+    fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n", sett.line_thickness);
 
     // Can't use variable ids here before sanitizing them. They can contain
     // characters like ", for some godforsaken reason,
@@ -192,7 +201,7 @@ void outputBitSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_inde
     double start_pos_y = y_index * (sett.height + sett.margin);
     uint8_t current_state = val->value_char == '0';
     double start_pos_x = -sett.slope_width / 2;
-    double xs = 10;
+    double xs = sett.waveform_width / sett.max_time;
 
     fprintf(file, "d=\"M %f %f ",
         start_pos_x, start_pos_y + !current_state * sett.height

@@ -23,8 +23,8 @@ typedef struct {
     double height;
     double slope_width;
     double waveform_width;
-    double image_width;
     double margin;
+    double line_thickness;
 
     size_t max_time;
 
