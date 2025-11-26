@@ -1,7 +1,11 @@
 # VCD to SVG converter
 # This program is not in a working state yet!
 # Unfinished!!!!
-This is a program that will eventually be able to generate a diagram from a VCD input. It is written in C without any parser libraries because I am a masochist. I wrote this for the 5 people on this planet that, like me, *hate* it when they have to include a screenshot of a GTKWave/ModelSim waveform into a report. There are going to be a few settings you can adjust. Usage will be as follows:
+This is a program that will eventually be able to generate a diagram from a VCD input. It is written in C without any parser libraries because I am a masochist. I wrote this for the 5 people on this planet that, like me, *hate* it when they have to include a screenshot of a GTKWave/ModelSim waveform into a report. There are going to be a few settings you can adjust. 
+
+
+# Usage
+Usage will be as follows:
 
 ```bash
 ./vcd2svg [OPTIONS] INPUT [OUTPUT]
@@ -45,3 +49,13 @@ You can use the YAML file by using the `-y,--yaml` option like this:
 ./vcd2svg --yaml YAML_FIKE VCD_FILE
 ```
 But a much easier way is to name the yaml file `vcd2svgstyle.yaml` and place it in the directory you're currently using, or the directory the vcd file is in. You can also add a global style file in your home directory called `.vcd2svgstyle.yaml`. If you don't like any of these features you can turn them off using some defines in a file I've yet to write.
+
+
+
+# Building
+If you don't trust my binary and want to compile the code yourself (fair), or if you want the absolute newest version (also fair), then you can compile the code like this:
+1. Install [libcyaml](https://github.com/tlsa/libcyaml)
+  1. Make sure to follow the instructions on how to do it
+  2. Run `ldconfig` afterwards to update your shared libraries!!
+2. Clone this repository if you haven't already
+3. Run `make`

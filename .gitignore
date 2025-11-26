@@ -5,6 +5,7 @@
 # Unignore all dirs
 !*/
 
+*.o
 
 *.svg
 *.pdf
@@ -12,3 +13,4 @@
 
 *.vvp
 
+.clangd
