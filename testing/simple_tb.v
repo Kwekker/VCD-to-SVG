@@ -38,7 +38,7 @@ module simple_tb ();
         #40;
         in_word = 8'd0;
         #2;
-        in_word = 8'd112;
+        in_word = -8'd15;
         #2;
         in_word = 8'd221;
         #2;

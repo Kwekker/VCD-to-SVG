@@ -1,0 +1,258 @@
+$timescale
+	1 ps
+$end
+$scope module Arx $end
+$var wire 1 aaa clock $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 aab a [15:0] $end
+$upscope $end
+$upscope $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 aac b [15:0] $end
+$upscope $end
+$upscope $end
+$var wire 16 aad data_in [15:0] $end
+$var wire 16 aae data_out [15:0] $end
+$var wire 3 aaf heep_hoy [2:0] $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 aag data_in [15:0] $end
+$upscope $end
+$upscope $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 aah data_out [15:0] $end
+$upscope $end
+$upscope $end
+$scope module top $end
+$var wire 1 aai floeper $end
+$upscope $end
+$scope module top $end
+$var wire 1 aaj hatsune_miku $end
+$upscope $end
+$scope module top $end
+$var wire 1 aba teto $end
+$upscope $end
+$scope module top $end
+$var wire 16 abb weird_out [15:0] $end
+$upscope $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 abc i_5 [15:0] $end
+$upscope $end
+$upscope $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 abd i_plus_a [15:0] $end
+$upscope $end
+$upscope $end
+$scope module top $end
+$scope module thing $end
+$var wire 16 abe i_half [15:0] $end
+$upscope $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+
+$dumpvars
+1aaa
+b0000000000000000 aab
+b0000000000000000 aac
+b0000000000000101 aad
+b1111111111111110 aae
+b110 aaf
+b0000000000000101 aag
+b1111111111111110 aah
+0aai
+1aaj
+1aba
+b1111111111111110 abb
+b0000000000011001 abc
+b0000000000000101 abd
+b0000000000000010 abe
+
+#500
+0aaa
+
+#1000
+1aaa
+b0000000000011001 aab
+b0000000000000101 aac
+b0000000000001010 aad
+b0000000000000000 aae
+b001 aaf
+b0000000000001010 aag
+b0000000000000000 aah
+1aai
+0aaj
+0aba
+b0000000000000000 abb
+b0000000000110010 abc
+b0000000000100011 abd
+b0000000000000101 abe
+
+#1500
+0aaa
+
+#2000
+1aaa
+b0000000000110010 aab
+b0000000000100011 aac
+b0000000000010100 aad
+b0000000000011001 aae
+b000 aaf
+b0000000000010100 aag
+b0000000000011001 aah
+0aai
+0aaj
+0aba
+b0000000000011001 abb
+b0000000001100100 abc
+b0000000001000110 abd
+b0000000000001010 abe
+
+#2500
+0aaa
+
+#3000
+1aaa
+b0000000001100100 aab
+b0000000001000110 aac
+b0000000001100100 aad
+b0000000000010100 aae
+b000 aaf
+b0000000001100100 aag
+b0000000000010100 aah
+0aai
+0aaj
+0aba
+b0000000000010100 abb
+b0000000111110100 abc
+b0000000011001000 abd
+b0000000000110010 abe
+
+#3500
+0aaa
+
+#4000
+1aaa
+b0000000111110100 aab
+b0000000011001000 aac
+b1000011010100000 aad
+b0011110101111000 aae
+b110 aaf
+b1000011010100000 aag
+b0011110101111000 aah
+0aai
+1aaj
+1aba
+b0011110101111000 abb
+b1010000100100000 abc
+b1000100010010100 abd
+b1100001101010000 abe
+
+#4500
+0aaa
+
+#5000
+1aaa
+b1010000100100000 aab
+b1000100010010100 aac
+b0100000000000000 aad
+b0110100010010100 aae
+b000 aaf
+b0100000000000000 aag
+b0110100010010100 aah
+0aai
+0aaj
+0aba
+b0110100010010100 abb
+b0100000000000000 abc
+b1110000100100000 abd
+b0010000000000000 abe
+
+#5500
+0aaa
+
+#6000
+1aaa
+b0100000000000000 aab
+b1110000100100000 aac
+b1001011010000000 aad
+b1001010111100000 aae
+b110 aaf
+b1001011010000000 aag
+b1001010111100000 aah
+0aai
+1aaj
+1aba
+b1001010111100000 abb
+b1111000010000000 abc
+b1101011010000000 abd
+b0100101101000000 abe
+
+#6500
+0aaa
+
+#7000
+1aaa
+b1111000010000000 aab
+b1101011010000000 aac
+b1100110100010101 aad
+b1110111111110110 aae
+b110 aaf
+b1100110100010101 aag
+b1110111111110110 aah
+0aai
+1aaj
+1aba
+b1110111111110110 abb
+b0000000101101001 abc
+b1011110110010101 abd
+b1110011010001010 abe
+
+#7500
+0aaa
+
+#8000
+1aaa
+b0000000101101001 aab
+b1011110110010101 aac
+b0000000000000001 aad
+b1011110110010101 aae
+b100 aaf
+b0000000000000001 aag
+b1011110110010101 aah
+0aai
+0aaj
+1aba
+b1011110110010101 abb
+b0000000000000101 abc
+b0000000101101010 abd
+b0000000000000000 abe
+
+#8500
+0aaa
+
+#9000
+1aaa
+b0000000000000101 aab
+b0000000101101010 aac
+b0000101110100110 aad
+b0111101110010111 aae
+b000 aaf
+b0000101110100110 aag
+b0111101110010111 aah
+0aai
+0aaj
+0aba
+b0111101110010111 abb
+b0011101000111110 abc
+b0000101110101011 abd
+b1000010111010011 abe
+
+#9500
+0aaa
+
