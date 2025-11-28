@@ -10,11 +10,15 @@ CFILES = $(wildcard src/*.c)
 OFILES = $(patsubst src/%.c,obj/%.o,$(CFILES))
 
 
-hellomake: $(OFILES)
-	$(CC) -o vcd2svg $^ $(CFLAGS) $(LIBS)
+debug: $(OFILES)
+	$(CC) -o vcd2svg $^ $(CFLAGS) $(LIBS) -g
+
+fast: $(OFILES)
+	$(CC) -o vcd2svg $^ $(CFLAGS) $(LIBS) -O3
+
 
 obj/%.o: src/%.c | obj/
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) -g
 
 obj/:
 	mkdir obj
