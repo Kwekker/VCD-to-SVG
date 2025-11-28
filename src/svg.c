@@ -22,8 +22,10 @@ static inline void outputBitFlip(FILE* file, svg_settings_t sett, double start_p
 );
 
 static inline void outputSignalText(
-    FILE *file, svg_settings_t sett, var_t var, uint32_t y_index
+    FILE *file, signal_settings_t sett, var_t var, uint32_t y_index
 );
+
+static signal_settings_t getSettings(svg_settings_t sett, size_t index);
 
 
 void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
@@ -33,16 +35,20 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     if (settings.max_time == 0) settings.max_time = vcd.max_time;
 
     // Calculate viewbox
-    if (settings.waveform_width == 0) settings.waveform_width = settings.max_time;
+    if (settings.waveform_width == 0)
+        settings.waveform_width = settings.max_time;
+
     double width = settings.waveform_width;
-    double height = // No margin below the bottom signal.
-        vcd.var_count * (settings.height + settings.margin) - settings.margin;
+    double height;
+
 
 
     fprintf(file,
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-        "<!-- Created with VCD-to-SVG converter (https://www.github.com/kwekker/vcd-to-svg/) -->\n"
-        "<svg width=\"%fmm\" height=\"%fmm\" viewBox=\"0 0 %f %f\" version=\"1.1\" "
+        "<!-- Created with VCD-to-SVG converter "
+        "(https://www.github.com/kwekker/vcd-to-svg/) -->\n"
+        "<svg width=\"%fmm\" height=\"%fmm\" viewBox=\"0 0 %f %f\""
+        "version=\"1.1\" "
         "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "
         "xmlns=\"http://www.w3.org/2000/svg\" "
         "xmlns:svg=\"http://www.w3.org/2000/svg\">\n\t",
@@ -78,14 +84,14 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
     printf("%s has %zu values\n", var.name, var.value_count);
 
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
-        sett.line_thickness
+        sett.global.line_thickness
     );
     fprintf(file, "id=\"waveform_%ld\"\n", ftell(file));
     fprintf(file, "inkscape:label=\"vector waveform\"\n");
 
 
-    double start_pos_y = y_index * (sett.height + sett.margin);
-    double start_pos_x = -sett.slope_width / 2;
+    double start_pos_y = y_index * (sett.global.height + sett.global.margin);
+    double start_pos_x = -sett.global.slope_width / 2;
     double xs = sett.waveform_width / sett.max_time;
 
     // current_state is 0 if all values are 0, otherwise it is 1.
@@ -99,7 +105,7 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
 
     // Always start the svg 'curcor' at the bottom of the signal.
     fprintf(file, "d=\"M %f %f ",
-        start_pos_x, start_pos_y + sett.height
+        start_pos_x, start_pos_y + sett.global.height
     );
 
     size_t line_count = 0;
@@ -142,7 +148,7 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
         fprintf(file, "H %f", xs*final_time);
         if (!was_zero && var.size > 1) {
             fprintf(file, "M %f %f H %f ",
-                xs*prev_time + sett.slope_width / 2.0, start_pos_y,
+                xs*prev_time + sett.global.slope_width / 2.0, start_pos_y,
                 xs*final_time
             );
         }
@@ -150,7 +156,7 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
 
     fprintf(file, "\"/>\n");
 
-    outputSignalText(file, sett, var, y_index);
+    outputSignalText(file, sett.global, var, y_index);
 
     fprintf(file, "</g>\n");
 }
@@ -163,9 +169,9 @@ static inline void outputBitFlip(
     double xs = sett.waveform_width / sett.max_time;
 
     fprintf(file, "H %f L %f %f ",
-        xs*time - sett.slope_width / 2.0,      // x1
-        xs*time + sett.slope_width / 2.0,      // x2
-        start_pos_y + sett.height * !new_state // y2
+        xs*time - sett.global.slope_width / 2.0,      // x1
+        xs*time + sett.global.slope_width / 2.0,      // x2
+        start_pos_y + sett.global.height * !new_state // y2
     );
 }
 
@@ -185,47 +191,49 @@ static inline void outputVectorSignal(
     //   2. Transition from a value to another value
     //   3. Transition from 0 to a value
 
+    signal_settings_t ssets = sett.global;
+
     if (is_zero) { // From a value to zero
         printf("Drawing the is zero case!!\n");
         // Bottom line that ends  in the middle of /
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - sett.slope_width / 2.0,
-            xs*val.time, start_pos_y + sett.height / 2.0
+            xs*val.time - ssets.slope_width / 2.0,
+            xs*val.time, start_pos_y + ssets.height / 2.0
         );
 
         // Top line that goes down like ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + sett.slope_width / 2.0, start_pos_y,
-            xs*val.time - sett.slope_width / 2.0,
-            xs*val.time + sett.slope_width / 2.0, start_pos_y + sett.height
+            xs*prev_time + ssets.slope_width / 2.0, start_pos_y,
+            xs*val.time - ssets.slope_width / 2.0,
+            xs*val.time + ssets.slope_width / 2.0, start_pos_y + ssets.height
         );
     }
     else if (!is_zero && !was_zero) { // From a value to another value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f",
-            xs*val.time - sett.slope_width / 2.0,
-            xs*val.time + sett.slope_width / 2.0,
+            xs*val.time - ssets.slope_width / 2.0,
+            xs*val.time + ssets.slope_width / 2.0,
             start_pos_y
         );
         // Top line that goes down like  ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + sett.slope_width / 2.0, start_pos_y,
-            xs*val.time - sett.slope_width / 2.0,
-            xs*val.time + sett.slope_width / 2.0,
-            start_pos_y + sett.height
+            xs*prev_time + ssets.slope_width / 2.0, start_pos_y,
+            xs*val.time - ssets.slope_width / 2.0,
+            xs*val.time + ssets.slope_width / 2.0,
+            start_pos_y + ssets.height
         );
     }
     else if (!is_zero && was_zero) { // From zero to a value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - sett.slope_width / 2.0,
-            xs*val.time + sett.slope_width / 2.0, start_pos_y
+            xs*val.time - ssets.slope_width / 2.0,
+            xs*val.time + ssets.slope_width / 2.0, start_pos_y
         );
         // Bottom line that goes down like    \_
         // It starts at the midpoint of the diagonal line.
         fprintf(file, "M %f %f L %f %f ",
-            xs*val.time, start_pos_y + sett.height / 2.0,
-            xs*val.time + sett.slope_width / 2.0, start_pos_y + sett.height
+            xs*val.time, start_pos_y + ssets.height / 2.0,
+            xs*val.time + ssets.slope_width / 2.0, start_pos_y + ssets.height
         );
     }
 }
@@ -233,7 +241,7 @@ static inline void outputVectorSignal(
 
 
 static inline void outputSignalText(
-    FILE *file, svg_settings_t sett, var_t var, uint32_t y_index
+    FILE *file, signal_settings_t sett, var_t var, uint32_t y_index
 ) {
     fprintf(file, "<text style=\"font-size:%f;", sett.font_size);
     fprintf(file, "color:black;text-anchor:end;\" ");
@@ -255,4 +263,30 @@ static inline uint8_t isZero(char *val) {
         val++;
     }
     return 1;
+}
+
+static void mergeSettings(svg_settings_t sett) {
+    for (size_t i = 0; i < sett.signal_count; i++) {
+        sett.signals[i] = getSettings(sett, i);
+    }
+}
+
+
+static signal_settings_t getSettings(svg_settings_t sett, size_t index) {
+    signal_settings_t ret = sett.global;
+    if (sett.signals == NULL) return ret;
+
+    signal_settings_t s = sett.signals[index];
+    const signal_settings_t ignore = IGNORED_SETTINGS;
+
+
+    if (s.height != ignore.height) ret.height = s.height;
+    if (s.slope_width != ignore.slope_width) ret.slope_width = s.slope_width;
+    if (s.margin != ignore.margin) ret.margin = s.margin;
+    if (s.line_thickness != ignore.line_thickness)
+        ret.line_thickness = s.line_thickness;
+    if (s.text_margin != ignore.text_margin) ret.text_margin = s.text_margin;
+    if (s.font_size != ignore.font_size) ret.font_size = s.font_size;
+
+    return ret;
 }
