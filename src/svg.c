@@ -21,6 +21,10 @@ static inline void outputBitFlip(FILE* file, svg_settings_t sett, double start_p
     uint8_t new_state, size_t time
 );
 
+static inline void outputSignalText(
+    FILE *file, svg_settings_t sett, var_t var, uint32_t y_index
+);
+
 
 void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
@@ -145,6 +149,9 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
     }
 
     fprintf(file, "\"/>\n");
+
+    outputSignalText(file, sett, var, y_index);
+
     fprintf(file, "</g>\n");
 }
 
@@ -225,6 +232,23 @@ static inline void outputVectorSignal(
 
 
 
+static inline void outputSignalText(
+    FILE *file, svg_settings_t sett, var_t var, uint32_t y_index
+) {
+    fprintf(file, "<text style=\"font-size:%f;", sett.font_size);
+    fprintf(file, "color:black;text-anchor:end;\" ");
+    fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
+        -sett.text_margin, sett.height +
+        y_index * (sett.height + sett.margin),
+        ftell(file)
+    );
+    fprintf(file, "%s", var.name);
+
+    fprintf(file, "</text>");
+}
+
+
+
 static inline uint8_t isZero(char *val) {
     while(*val) {
         if (*val != '0') return 0;
@@ -232,54 +256,3 @@ static inline uint8_t isZero(char *val) {
     }
     return 1;
 }
-
-
-
-// "font-style:normal;
-// font-variant:normal;
-// font-weight:normal;
-// font-stretch:normal;
-// font-size:10px;
-// line-height:normal;
-// font-family:sans-serif;
-// -inkscape-font-specification:'sans-serif, Normal';
-// font-variant-ligatures:no-common-ligatures;
-// font-variant-position:normal;
-// font-variant-caps:normal;
-// font-variant-numeric:normal;
-// font-variant-alternates:normal;
-// font-variant-east-asian:normal;
-// font-feature-settings:normal;
-// font-variation-settings:normal;
-// text-indent:0;
-// text-align:end;
-// text-decoration-line:none;
-// text-decoration-style:solid;
-// text-decoration-color:#000000;
-// letter-spacing:normal;
-// word-spacing:normal;
-// text-transform:none;
-// writing-mode:lr-tb;
-// direction:ltr;
-// text-orientation:mixed;
-// dominant-baseline:auto;
-// baseline-shift:baseline;
-// text-anchor:end;
-// white-space:normal;
-// shape-padding:0;
-// shape-margin:0;
-// inline-size:0;
-// opacity:1;
-// vector-effect:none;
-// fill:#000000;
-// fill-opacity:1;
-// stroke-width:79.0001;
-// stroke-linecap:square;
-// stroke-linejoin:miter;
-// stroke-miterlimit:4;
-// stroke-dasharray:none;
-// stroke-dashoffset:0;
-// stroke-opacity:1;
-// -inkscape-stroke:none;
-// stop-color:#000000;
-// stop-opacity:1"
