@@ -1,0 +1,16 @@
+katten: 0.3
+
+styles:
+  - thickness: 48.23
+    id: asldfjhatsune_miku
+
+  - id: kasane_teto
+    thickness: 3242.2
+
+  - id: floeper poeper
+    thickness: 234.0
+    slope width: 0.5
+    color: |
+      hahaha
+      Dit is een hele lange text
+      wowowowow
