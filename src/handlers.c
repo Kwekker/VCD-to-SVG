@@ -85,9 +85,53 @@ int handleEnddefinitions(FILE *file, vcd_t* vcd) {
     return countAndAllocateValues(file, vcd);
 }
 int handleScope(FILE *file, vcd_t* vcd) {
-    return seekEnd(file); // Not dealing with that yet
+
+    printf("Scoping: %s\n", vcd->current_path);
+
+    // Skip the next token.
+    char c = getc(file);
+    NEXT_TOKEN(8, idc, ERR_WRONG_SCOPE_TYPE);
+
+    char *token = nextArbiLengthToken(file);
+    if (strchr(token, '/') != NULL) {
+        free(token);
+        return ERR_SLASH_IN_SCOPE;
+    }
+
+    size_t add_length = strlen(token) + 1; // + 1 for the slash (/)
+
+    // In case of no allocation:
+    if (vcd->current_path_size == 0) {
+        // No + 1 for a '\0' here because we already added one for a slash,
+        // which will not be added since this is the first scope.
+        vcd->current_path = malloc(add_length);
+        vcd->current_path_size = add_length;
+        vcd->current_path[0] = '\0';
+    }
+
+    // In case of too little allocation:
+    size_t path_string_length = strlen(vcd->current_path);
+    // + 1 for the '\0'
+    size_t required_size = path_string_length + add_length + 1;
+    if (vcd->current_path_size < required_size) {
+        vcd->current_path = realloc(vcd->current_path, required_size);
+        vcd->current_path_size = required_size;
+    }
+
+    sprintf(vcd->current_path + path_string_length, "/%s", token);
+    free(token);
+
+    return seekEnd(file);
 }
+
 int handleUpscope(FILE *file, vcd_t* vcd) {
+    printf("Scoping up: %s\n", vcd->current_path);
+
+    char *slash = strrchr(vcd->current_path, '/');
+
+    if (slash != NULL)
+        *slash = '\0'; // End the string at the slash.
+
     return seekEnd(file);
 }
 
@@ -330,7 +374,6 @@ int handleValueChange(FILE *file, vcd_t *vcd) {
 static inline char *leftExtend(
     size_t token_length, size_t var_length, char *token
 ) {
-    printf("Extending %s of size %zu to size %zu\n", token, token_length, var_length);
     char *s = malloc(var_length + 1);
     memcpy(s + var_length - token_length, token + 1, token_length);
     char extender = '0';
@@ -339,7 +382,6 @@ static inline char *leftExtend(
     }
     memset(s, extender, var_length - token_length);
     s[var_length] = '\0';
-    printf("Extended to %s\n", s);
     return s;
 }
 

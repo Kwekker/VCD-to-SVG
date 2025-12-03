@@ -27,18 +27,14 @@
 #define ERR_COMMAND_IN_COMMAND -18
 #define ERR_NEW_TIME_LESS_THAN_MAX -19
 #define ERR_VALUE_LENGTH_MISMATCH -20
+#define ERR_SLASH_IN_SCOPE -21
+#define ERR_WRONG_SCOPE_TYPE -22
 
 
 #define CHAR_BUF_SIZE 1024
 #define COMMAND_COUNT 12
 #define MAX_ID_LENGTH 20
 #define MAX_NAME_LENGTH 32 // This one is up for debate.
-
-//! STOP BEING DUMB DUDE
-//TODO: TOKENIZE THE FUCKING FILE OMFG
-//TODO: That would honestly make this so much easier.
-// todo: Or maybe!!! Make a function that grabs the next keyword.
-// todo: You can even maybe make it with static memory hold on yeah that's possible.
 
 
 #define TYPE_EVENT      0
@@ -86,6 +82,8 @@ typedef struct var_s {
 typedef struct {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
     var_t *vars;
+    char *current_path;
+    size_t current_path_size;
     size_t var_count;
     size_t max_time;
 } vcd_t;

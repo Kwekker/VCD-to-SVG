@@ -165,6 +165,9 @@ static size_t countVars(FILE *file) {
 
 void freeVCD(vcd_t vcd) {
     if (vcd.vars != NULL) {
+        // Free its scope path.
+        if (vcd.current_path != NULL) free(vcd.current_path);
+
         for (size_t i = 0; i < vcd.var_count; i++) {
             var_t *var = vcd.vars + i;
             if (var->values == NULL || var->copy_of != NULL) continue;
