@@ -6,23 +6,28 @@
 
 
 
+
 #define DEFAULT_STROKE_STYLE "stroke-width:%f;fill:none;stroke:#000000;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
 
 void outputBitSignal(FILE* file, var_t var, svg_settings_t settings, uint32_t y_index);
-static void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index);
+static void outputSignal(
+    FILE* file, var_t var,
+    svg_settings_t sett, signal_settings_t sig, double start_pos_y
+);
 static inline uint8_t isZero(char *val);
 
 // These are inline because they're only run once.
 static inline void outputVectorSignal(
-    FILE* file, svg_settings_t sett, value_pair_t val,
+    FILE* file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
     double start_pos_y, size_t prev_time, uint8_t was_zero
 );
-static inline void outputBitFlip(FILE* file, svg_settings_t sett, double start_pos_y,
-    uint8_t new_state, size_t time
+static inline void outputBitFlip(
+    FILE* file, svg_settings_t sett, signal_settings_t sig,
+    double start_pos_y, uint8_t new_state, size_t time
 );
 
 static inline void outputSignalText(
-    FILE *file, signal_settings_t sett, var_t var, uint32_t y_index
+    FILE *file, signal_settings_t sig, var_t var, double start_pos_y
 );
 
 
@@ -71,6 +76,7 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     );
 
     fprintf(file, "<g id=\"layer1\">\n");
+    double y_pos = 0;
     for (size_t i = 0; i < vcd.var_count; i++) {
         var_t var = vcd.vars[i];
         if (var.copy_of != NULL) {
@@ -78,8 +84,9 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
             var.values = var.copy_of->values;
         }
         printf("Var %zu: %s\n", i, var.name);
-        outputSignal(file, var, settings, i);
-
+        signal_settings_t sig = settings.signals[i];
+        outputSignal(file, var, settings, sig, y_pos);
+        y_pos += sig.height + sig.margin;
     }
     printf("Done!\n");
 
@@ -88,7 +95,10 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
 }
 
-void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) {
+void outputSignal(
+    FILE* file, var_t var, svg_settings_t sett, signal_settings_t sig,
+    double start_pos_y
+) {
     if (var.size == 0) return;
     if (var.value_count == 0) {
         printf("Warning: signal %s has 0 values!\n", var.name);
@@ -101,17 +111,14 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
         ftell(file), var.name
     );
 
-    printf("%s has %zu values\n", var.name, var.value_count);
-
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
-        sett.global.line_thickness
+        sig.line_thickness
     );
     fprintf(file, "id=\"waveform_%ld\"\n", ftell(file));
     fprintf(file, "inkscape:label=\"vector waveform\"\n");
 
 
-    double start_pos_y = y_index * (sett.global.height + sett.global.margin);
-    double start_pos_x = -sett.global.slope_width / 2;
+    double start_pos_x = -sig.slope_width / 2;
     double xs = sett.waveform_width / sett.max_time;
 
     // current_state is 0 if all values are 0, otherwise it is 1.
@@ -125,7 +132,7 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
 
     // Always start the svg 'curcor' at the bottom of the signal.
     fprintf(file, "d=\"M %f %f ",
-        start_pos_x, start_pos_y + sett.global.height
+        start_pos_x, start_pos_y + sig.height
     );
 
     size_t line_count = 0;
@@ -152,11 +159,11 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
         line_count++;
         if (var.size > 1) {
             outputVectorSignal(
-                file, sett, val, start_pos_y, prev_time, was_zero
+                file, sett, sig, val, start_pos_y, prev_time, was_zero
             );
         }
         else {
-            outputBitFlip(file, sett, start_pos_y, !is_zero, val.time);
+            outputBitFlip(file, sett, sig, start_pos_y, !is_zero, val.time);
         }
 
     }
@@ -168,7 +175,7 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
         fprintf(file, "H %f", xs*final_time);
         if (!was_zero && var.size > 1) {
             fprintf(file, "M %f %f H %f ",
-                xs*prev_time + sett.global.slope_width / 2.0, start_pos_y,
+                xs*prev_time + sig.slope_width / 2.0, start_pos_y,
                 xs*final_time
             );
         }
@@ -176,22 +183,22 @@ void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) 
 
     fprintf(file, "\"/>\n");
 
-    outputSignalText(file, sett.global, var, y_index);
+    outputSignalText(file, sig, var, start_pos_y);
 
     fprintf(file, "</g>\n");
 }
 
 
 static inline void outputBitFlip(
-    FILE* file, svg_settings_t sett, double start_pos_y,
+    FILE* file, svg_settings_t sett, signal_settings_t sig, double start_pos_y,
     uint8_t new_state, size_t time
 ) {
     double xs = sett.waveform_width / sett.max_time;
 
     fprintf(file, "H %f L %f %f ",
-        xs*time - sett.global.slope_width / 2.0,      // x1
-        xs*time + sett.global.slope_width / 2.0,      // x2
-        start_pos_y + sett.global.height * !new_state // y2
+        xs*time - sig.slope_width / 2.0,      // x1
+        xs*time + sig.slope_width / 2.0,      // x2
+        start_pos_y + sig.height * !new_state // y2
     );
 }
 
@@ -200,7 +207,7 @@ static inline void outputBitFlip(
 // This function with an unreasonably large amount of arguments
 // was the best thing I could come up with here, unfortunately.
 static inline void outputVectorSignal(
-    FILE* file, svg_settings_t sett, value_pair_t val,
+    FILE* file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
     double start_pos_y, size_t prev_time, uint8_t was_zero
 ) {
     double xs = sett.waveform_width / sett.max_time;
@@ -211,48 +218,46 @@ static inline void outputVectorSignal(
     //   2. Transition from a value to another value
     //   3. Transition from 0 to a value
 
-    signal_settings_t ssets = sett.global;
-
     if (is_zero) { // From a value to zero
         // Bottom line that ends  in the middle of /
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - ssets.slope_width / 2.0,
-            xs*val.time, start_pos_y + ssets.height / 2.0
+            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time, start_pos_y + sig.height / 2.0
         );
 
         // Top line that goes down like ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + ssets.slope_width / 2.0, start_pos_y,
-            xs*val.time - ssets.slope_width / 2.0,
-            xs*val.time + ssets.slope_width / 2.0, start_pos_y + ssets.height
+            xs*prev_time + sig.slope_width / 2.0, start_pos_y,
+            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time + sig.slope_width / 2.0, start_pos_y + sig.height
         );
     }
     else if (!is_zero && !was_zero) { // From a value to another value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f",
-            xs*val.time - ssets.slope_width / 2.0,
-            xs*val.time + ssets.slope_width / 2.0,
+            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time + sig.slope_width / 2.0,
             start_pos_y
         );
         // Top line that goes down like  ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + ssets.slope_width / 2.0, start_pos_y,
-            xs*val.time - ssets.slope_width / 2.0,
-            xs*val.time + ssets.slope_width / 2.0,
-            start_pos_y + ssets.height
+            xs*prev_time + sig.slope_width / 2.0, start_pos_y,
+            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time + sig.slope_width / 2.0,
+            start_pos_y + sig.height
         );
     }
     else if (!is_zero && was_zero) { // From zero to a value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - ssets.slope_width / 2.0,
-            xs*val.time + ssets.slope_width / 2.0, start_pos_y
+            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time + sig.slope_width / 2.0, start_pos_y
         );
         // Bottom line that goes down like    \_
         // It starts at the midpoint of the diagonal line.
         fprintf(file, "M %f %f L %f %f ",
-            xs*val.time, start_pos_y + ssets.height / 2.0,
-            xs*val.time + ssets.slope_width / 2.0, start_pos_y + ssets.height
+            xs*val.time, start_pos_y + sig.height / 2.0,
+            xs*val.time + sig.slope_width / 2.0, start_pos_y + sig.height
         );
     }
 }
@@ -260,13 +265,12 @@ static inline void outputVectorSignal(
 
 
 static inline void outputSignalText(
-    FILE *file, signal_settings_t sett, var_t var, uint32_t y_index
+    FILE *file, signal_settings_t sig, var_t var, double start_pos_y
 ) {
-    fprintf(file, "<text style=\"font-size:%f;", sett.font_size);
+    fprintf(file, "<text style=\"font-size:%f;", sig.font_size);
     fprintf(file, "color:black;text-anchor:end;\" ");
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
-        -sett.text_margin, sett.height +
-        y_index * (sett.height + sett.margin),
+        -sig.text_margin, sig.height + start_pos_y,
         ftell(file)
     );
 
