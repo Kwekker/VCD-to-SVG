@@ -60,6 +60,10 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
         }
     }
     height -= last_margin;
+    if (height == 0) {
+        printf("No signals to draw!\n");
+        return;
+    }
 
 
 
@@ -78,13 +82,15 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     fprintf(file, "<g id=\"layer1\">\n");
     double y_pos = 0;
     for (size_t i = 0; i < vcd.var_count; i++) {
+        signal_settings_t sig = settings.signals[i];
+        if (!sig.show) continue;
+
         var_t var = vcd.vars[i];
         if (var.copy_of != NULL) {
             var.value_count = var.copy_of->value_count;
             var.values = var.copy_of->values;
         }
         printf("Var %zu: %s\n", i, var.name);
-        signal_settings_t sig = settings.signals[i];
         outputSignal(file, var, settings, sig, y_pos);
         y_pos += sig.height + sig.margin;
     }

@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     fclose(file);
 
     svg_settings_t settings = initSvgSettings(vcd.var_count);
-
+    settings.global.show = 1;
 
 
     FILE *out_file = fopen("out.svg", "w");
