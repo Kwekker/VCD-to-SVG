@@ -7,14 +7,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "svg.h"
+
 #include <cyaml/cyaml.h>
 
-/******************************************************************************
- * C data structure for storing a project plan.
- *
- * This is what we want to load the YAML into.
- ******************************************************************************/
+const signal_settings_t default_sig_settings = {
+    .height         = 1,
+    .slope_width    = 0.1,
+    .margin         = 1.5,
+    .line_thickness = 0.1,
+    .text_margin    = 0.5,
+    .font_size      = 1,
+};
 
+const svg_settings_t default_settings = {
+    .waveform_width = 100,
+    .max_time       = 0,
+    .global         = default_sig_settings,
+    .signals        = NULL,
+    .signal_count   = 0
+};
 
 
 typedef struct {
@@ -54,24 +66,10 @@ static const cyaml_schema_field_t style_field[] = {
         "color", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         var_style_t, color, 0, CYAML_UNLIMITED
     ),
-    // CYAML_FIELD_INT(
-    //     "id", CYAML_FLAG_DEFAULT, var_style_t, id
-    // ),
-    // CYAML_FIELD_INT(
-    //     "thickness", CYAML_FLAG_DEFAULT, var_style_t, thickness
-    // ),
+
     CYAML_FIELD_END
 };
 
-// static const cyaml_schema_field_t style_field[] = {
-//     CYAML_FIELD_INT(
-//         "hoeveelheid", CYAML_FLAG_STRICT, struct flinder, hoeveelheid
-//     ),
-//     CYAML_FIELD_INT(
-//         "miauw", CYAML_FLAG_STRICT, struct flinder, miauw
-//     ),
-//     CYAML_FIELD_END
-// };
 
 
 /* CYAML value schema for the top level mapping. */
@@ -104,44 +102,66 @@ static const cyaml_config_t config = {
     .log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
 };
 
+
 /* Main entry point from OS. */
-int main(int argc, char *argv[])
+int loadYaml(char *file_name)
 {
     cyaml_err_t err;
     styles_t *n;
-    enum {
-        ARG_PROG_NAME,
-        ARG_PATH_IN,
-        ARG__COUNT,
-    };
 
-    /* Handle args */
-    if (argc != ARG__COUNT) {
-        fprintf(stderr, "Usage:\n");
-        fprintf(stderr, "  %s <INPUT>\n", argv[ARG_PROG_NAME]);
-        return EXIT_FAILURE;
-    }
+
 
     /* Load input file. */
-    err = cyaml_load_file(argv[ARG_PATH_IN], &config,
+    err = cyaml_load_file(file_name, &config,
             &top_schema, (cyaml_data_t **)&n, NULL);
     if (err != CYAML_OK) {
         fprintf(stderr, "ERROR: %s\n", cyaml_strerror(err));
         return EXIT_FAILURE;
     }
 
-    /* Use the data. */
-    printf("katten: %f\n", n->katten);
-    printf("count: %zu\n", n->styles_count);
-    for (size_t i = 0; i < n->styles_count; i++) {
-        var_style_t style = n->styles[i];
-        // printf("Id: %s\n\tthickness= %f\n", style.id, style.thickness);
-        printf("Id: %s\n\tthickness= %f\n", style.id, style.thickness);
-        printf("\tcolor: %s\n\tslope_width: %f\n", style.color, style.slope_width);
-    }
-
     /* Free the data */
     cyaml_free(&config, &top_schema, n, 0);
 
     return EXIT_SUCCESS;
+}
+
+
+svg_settings_t initSvgSettings(size_t count) {
+    svg_settings_t ret = default_settings;
+    ret.signals = malloc(count * sizeof(signal_settings_t));
+    for (size_t i = 0; i < count; i++) {
+        ret.signals[i] = IGNORED_SETTINGS;
+    }
+    ret.signal_count = count;
+
+    return ret;
+}
+
+
+void mergeSettings(svg_settings_t *sett) {
+    signal_settings_t *sigs = sett->signals;
+    for (size_t i = 0; i < sett->signal_count; i++) {
+        sigs[i] = getSettings(sett, i);
+    }
+}
+
+
+signal_settings_t getSettings(svg_settings_t *sett, size_t index) {
+    signal_settings_t ret = sett->global;
+    if (sett->signals == NULL) return ret;
+
+    signal_settings_t s = sett->signals[index];
+    const signal_settings_t ignore = IGNORED_SETTINGS;
+
+
+    if (s.show != ignore.show) ret.show = s.show;
+    if (s.height != ignore.height) ret.height = s.height;
+    if (s.slope_width != ignore.slope_width) ret.slope_width = s.slope_width;
+    if (s.margin != ignore.margin) ret.margin = s.margin;
+    if (s.line_thickness != ignore.line_thickness)
+        ret.line_thickness = s.line_thickness;
+    if (s.text_margin != ignore.text_margin) ret.text_margin = s.text_margin;
+    if (s.font_size != ignore.font_size) ret.font_size = s.font_size;
+
+    return ret;
 }

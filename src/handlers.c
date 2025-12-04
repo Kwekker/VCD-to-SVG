@@ -86,8 +86,6 @@ int handleEnddefinitions(FILE *file, vcd_t* vcd) {
 }
 int handleScope(FILE *file, vcd_t* vcd) {
 
-    printf("Scoping: %s\n", vcd->current_path);
-
     // Skip the next token.
     char c = getc(file);
     NEXT_TOKEN(8, idc, ERR_WRONG_SCOPE_TYPE);
@@ -107,26 +105,31 @@ int handleScope(FILE *file, vcd_t* vcd) {
         vcd->current_path = malloc(add_length);
         vcd->current_path_size = add_length;
         vcd->current_path[0] = '\0';
+
+
+        strcpy(vcd->current_path, token);
+        free(token);
+    }
+    else {
+        size_t path_string_length = strlen(vcd->current_path);
+        // + 1 for the '\0'
+        size_t required_size = path_string_length + add_length + 1;
+
+        // In case of too little allocation:
+        if (vcd->current_path_size < required_size) {
+            vcd->current_path = realloc(vcd->current_path, required_size);
+            vcd->current_path_size = required_size;
+        }
+
+        sprintf(vcd->current_path + path_string_length, "/%s", token);
+        free(token);
     }
 
-    // In case of too little allocation:
-    size_t path_string_length = strlen(vcd->current_path);
-    // + 1 for the '\0'
-    size_t required_size = path_string_length + add_length + 1;
-    if (vcd->current_path_size < required_size) {
-        vcd->current_path = realloc(vcd->current_path, required_size);
-        vcd->current_path_size = required_size;
-    }
-
-    sprintf(vcd->current_path + path_string_length, "/%s", token);
-    free(token);
 
     return seekEnd(file);
 }
 
 int handleUpscope(FILE *file, vcd_t* vcd) {
-    printf("Scoping up: %s\n", vcd->current_path);
-
     char *slash = strrchr(vcd->current_path, '/');
 
     if (slash != NULL)
@@ -202,8 +205,17 @@ int handleVar(FILE *file, vcd_t* vcd) {
         }
     }
 
-    NEXT_TOKEN(MAX_NAME_LENGTH, name_buf, ERR_INVALID_NAME);
-    strcpy(var.name, name_buf);
+    char *name_token = nextArbiLengthToken(file);
+
+    // This probably isn't necessary but let's be safe.
+    if (var.name != NULL) free(var.name);
+
+    size_t token_length = strlen(name_token);
+    // + 2 for '/' and '\0'.
+    size_t name_size = strlen(vcd->current_path) + token_length + 2;
+    var.name = malloc(name_size);
+    sprintf(var.name, "%s/%s", vcd->current_path, name_token);
+    free(name_token);
 
     vcd->vars[vcd->var_count] = var;
     vcd->var_count++;

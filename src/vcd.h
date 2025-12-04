@@ -34,7 +34,6 @@
 #define CHAR_BUF_SIZE 1024
 #define COMMAND_COUNT 12
 #define MAX_ID_LENGTH 20
-#define MAX_NAME_LENGTH 32 // This one is up for debate.
 
 
 #define TYPE_EVENT      0
@@ -69,7 +68,7 @@ typedef struct {
 
 typedef struct var_s {
     char id[MAX_ID_LENGTH];
-    char name[MAX_NAME_LENGTH];
+    char *name;
     uint8_t type;
     size_t size;
     value_pair_t *values;

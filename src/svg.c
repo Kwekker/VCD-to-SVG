@@ -1,7 +1,7 @@
 #include "svg.h"
 #include "vcd.h"
-#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
@@ -25,10 +25,13 @@ static inline void outputSignalText(
     FILE *file, signal_settings_t sett, var_t var, uint32_t y_index
 );
 
-static signal_settings_t getSettings(svg_settings_t sett, size_t index);
 
 
+// This function assumes settings.signals
+// is completely allocated and initialized.
 void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
+
+    mergeSettings(&settings);
 
     // Make sure we don't draw a bunch of empty space.
     if (settings.max_time > vcd.max_time) settings.max_time = vcd.max_time;
@@ -39,7 +42,19 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
         settings.waveform_width = settings.max_time;
 
     double width = settings.waveform_width;
-    double height;
+    double height = 0;
+
+    double last_margin = 0;
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        signal_settings_t *sig = settings.signals + i;
+        if (sig->show) {
+            printf("adding %f and %f to height\n", sig->height, sig->margin);
+            height += sig->height;
+            height += sig->margin;
+            last_margin = sig->margin;
+        }
+    }
+    height -= last_margin;
 
 
 
@@ -47,10 +62,10 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
         "<!-- Created with VCD-to-SVG converter "
         "(https://www.github.com/kwekker/vcd-to-svg/) -->\n"
-        "<svg width=\"%fmm\" height=\"%fmm\" viewBox=\"0 0 %f %f\""
-        "version=\"1.1\" "
-        "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\" "
-        "xmlns=\"http://www.w3.org/2000/svg\" "
+        "<svg width=\"%fmm\" height=\"%fmm\" viewBox=\"0 0 %f %f\"\n"
+        "version=\"1.1\"\n"
+        "xmlns:inkscape=\"http://www.inkscape.org/namespaces/inkscape\"\n"
+        "xmlns=\"http://www.w3.org/2000/svg\"\n"
         "xmlns:svg=\"http://www.w3.org/2000/svg\">\n\t",
         width, height, width, height
     );
@@ -75,6 +90,11 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
 void outputSignal(FILE* file, var_t var, svg_settings_t sett, uint32_t y_index) {
     if (var.size == 0) return;
+    if (var.value_count == 0) {
+        printf("Warning: signal %s has 0 values!\n", var.name);
+        return;
+    }
+
 
     // Make the SVG nicer to work with in inkscape by setting a label.
     fprintf(file, "<g id=\"var_%ld\" inkscape:label=\"%s\">\n",
@@ -194,7 +214,6 @@ static inline void outputVectorSignal(
     signal_settings_t ssets = sett.global;
 
     if (is_zero) { // From a value to zero
-        printf("Drawing the is zero case!!\n");
         // Bottom line that ends  in the middle of /
         fprintf(file, "H %f L %f %f ",
             xs*val.time - ssets.slope_width / 2.0,
@@ -250,7 +269,10 @@ static inline void outputSignalText(
         y_index * (sett.height + sett.margin),
         ftell(file)
     );
-    fprintf(file, "%s", var.name);
+
+    char *name = strrchr(var.name, '/') + 1;
+    if (name == NULL) name = var.name;
+    fprintf(file, "%s", name);
 
     fprintf(file, "</text>");
 }
@@ -263,30 +285,4 @@ static inline uint8_t isZero(char *val) {
         val++;
     }
     return 1;
-}
-
-static void mergeSettings(svg_settings_t sett) {
-    for (size_t i = 0; i < sett.signal_count; i++) {
-        sett.signals[i] = getSettings(sett, i);
-    }
-}
-
-
-static signal_settings_t getSettings(svg_settings_t sett, size_t index) {
-    signal_settings_t ret = sett.global;
-    if (sett.signals == NULL) return ret;
-
-    signal_settings_t s = sett.signals[index];
-    const signal_settings_t ignore = IGNORED_SETTINGS;
-
-
-    if (s.height != ignore.height) ret.height = s.height;
-    if (s.slope_width != ignore.slope_width) ret.slope_width = s.slope_width;
-    if (s.margin != ignore.margin) ret.margin = s.margin;
-    if (s.line_thickness != ignore.line_thickness)
-        ret.line_thickness = s.line_thickness;
-    if (s.text_margin != ignore.text_margin) ret.text_margin = s.text_margin;
-    if (s.font_size != ignore.font_size) ret.font_size = s.font_size;
-
-    return ret;
 }

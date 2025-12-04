@@ -78,18 +78,18 @@ vcd_t interpretVCD(FILE *file) {
 
     }
 
-    // printf("\n\n");
-    // for (size_t i = 0; i < vcd.var_count; i++) {
-    //     var_t var = vcd.vars[i];
+    printf("\n\n");
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        var_t var = vcd.vars[i];
 
-    //     printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
-    //     for (size_t j = 0; j < var.value_count; j++) {
-    //         if (var.size == 1)
-    //             printf("\t %3zu: %c\n", j, var.values[j].value_char);
-    //         else
-    //             printf("\t %3zu: %s\n", j, var.values[j].value_string);
-    //     }
-    // }
+        printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
+        // for (size_t j = 0; j < var.value_count; j++) {
+        //     if (var.size == 1)
+        //         printf("\t %3zu: %c\n", j, var.values[j].value_char);
+        //     else
+        //         printf("\t %3zu: %s\n", j, var.values[j].value_string);
+        // }
+    }
 
     return vcd;
 }
@@ -170,6 +170,7 @@ void freeVCD(vcd_t vcd) {
 
         for (size_t i = 0; i < vcd.var_count; i++) {
             var_t *var = vcd.vars + i;
+            if (var->name != NULL) free(var->name);
             if (var->values == NULL || var->copy_of != NULL) continue;
             if (var->size > 1) {
                 for (size_t j = 0; j < var->value_count; j++) {

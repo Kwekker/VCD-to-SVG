@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "vcd.h"
@@ -32,30 +33,20 @@ int main(int argc, char *argv[]) {
         fclose(file);
         return -1;
     }
+    fclose(file);
 
-    signal_settings_t sig_settings = {
-        .height         = 1,
-        .slope_width    = 0.1,
-        .margin         = 1.5,
-        .line_thickness = 0.1,
-        .text_margin    = 0.5,
-        .font_size      = 1,
-    };
-    svg_settings_t settings = {
-        .waveform_width = 100,
-        .max_time       = 0,
-        .global         = sig_settings,
-        .signals        = NULL
-    };
+    svg_settings_t settings = initSvgSettings(vcd.var_count);
+
+
+
     FILE *out_file = fopen("out.svg", "w");
+
 
     printf("Outputting svg!!\n");
     writeSVG(out_file, vcd, settings);
     freeVCD(vcd);
+    free(settings.signals);
     fclose(out_file);
-
-
-    fclose(file);
 
     return 0;
 }
