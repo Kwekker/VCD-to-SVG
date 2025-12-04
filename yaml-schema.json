@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Styles",
+  "description":
+    "Cool schema for svg style yaml files",
+  "type": "object",
+  "required": ["show-all"],
+  "properties": {
+    "waveform-width": {"type": "integer"},
+    "max-time": {"type": "integer"},
+    "time-unit-width": {"type": "number"},
+    "show-all": {"type": "boolean"},
+    "global-style": {
+      "$ref": "#/$defs/style",
+      "required": ["line-color" ,"text-color" ,"line-weight","slope-width","margin" ,"text-margin","font-size","height"],
+      "not": {
+        "anyOf": [
+          {"required": ["id"]},
+          {"required": ["name"]}
+        ]
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/style",
+        "anyOf": [
+          {"required": ["id"]},
+          {"required": ["path"]}
+        ]
+
+      }
+
+    }
+
+  },
+  "$defs": {
+    "style": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "string"},
+        "path": {"type": "string"},
+        "line-color"  : {"type": "string"},
+        "text-color"  : {"type": "string"},
+        "line-weight" : {"type": "number"},
+        "slope-width" : {"type": "number"},
+        "margin"  : {"type": "number"},
+        "text-margin" : {"type": "number"},
+        "font-size" : {"type": "number"},
+        "height"  : {"type": "number"}
+      }
+    }
+  }
+}
