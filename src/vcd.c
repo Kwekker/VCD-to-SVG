@@ -186,3 +186,37 @@ void freeVCD(vcd_t vcd) {
     }
     free(vcd.vars);
 }
+
+
+
+var_t *getVarById(vcd_t* restrict vcd, char* restrict id) {
+
+    // printf("Looking for var id %s\n", id);
+
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        if (strcmp(id, vcd->vars[i].id) == 0)
+            return &(vcd->vars[i]);
+    }
+    return NULL;
+}
+
+var_t* getVarByPath(vcd_t* restrict vcd, char* restrict path) {
+
+    // Pathless search (So "bar" matches "sim/dut/bar").
+    if (strchr(path, '/') == NULL) {
+        for (size_t i = 0; i < vcd->var_count; i++) {
+            var_t *var = vcd->vars + i;
+            char *cmp_me = strrchr(var->name, '/') + 1;
+            if (strcmp(cmp_me, path) == 0) return var;
+        }
+    }
+    // Search with path (Only match "sim/dut/bar" with "sim/dut/bar").
+    else {
+        for (size_t i = 0; i < vcd->var_count; i++) {
+            var_t *var = vcd->vars + i;
+            if (strcmp(var->name, path) == 0) return var;
+        }
+    }
+
+    return NULL;
+}

@@ -76,6 +76,10 @@ typedef struct var_s {
     size_t value_count;
     size_t value_index;
     struct var_s *copy_of;
+    // A pointer to a signal_settings_t struct.
+    // Including signal_settings.h here would lead to a dependency cycle,
+    // so it's a void pointer.
+    void *style;
 } var_t;
 
 
@@ -93,6 +97,11 @@ typedef struct {
 
 vcd_t interpretVCD(FILE *file);
 void freeVCD(vcd_t vcd);
+
+
+var_t* getVarById(vcd_t* restrict vcd, char* restrict id);
+var_t* getVarByPath(vcd_t* restrict vcd, char* restrict path);
+
 
 
 

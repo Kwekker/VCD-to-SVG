@@ -5,6 +5,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "vcd.h"
+
+
+
 //               slope_width
 //              |--|
 // height ┬       /‾‾‾‾‾‾
@@ -19,8 +23,9 @@
 //          waveform width
 
 
-
 typedef struct {
+    char *id;
+    char *path;
     uint8_t show;
     double height;
     double slope_width;
@@ -28,6 +33,8 @@ typedef struct {
     double line_thickness;
     double text_margin;
     double font_size;
+    char *line_color;
+    char *text_color;
 
 } signal_settings_t;
 
@@ -35,6 +42,7 @@ typedef struct {
 typedef struct {
 
     double waveform_width;
+    double time_unit_width;
     size_t max_time;
 
     signal_settings_t global;
@@ -59,5 +67,7 @@ svg_settings_t initSvgSettings(size_t count);
 signal_settings_t getSettings(svg_settings_t *sett, size_t index);
 void mergeSettings(svg_settings_t *sett);
 
+svg_settings_t *loadSettingsFromFile(char *file_name, vcd_t vcd);
+void freeSettings(svg_settings_t *settings);
 
 #endif

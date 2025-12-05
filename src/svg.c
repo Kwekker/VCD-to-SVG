@@ -7,12 +7,10 @@
 
 
 
-#define DEFAULT_STROKE_STYLE "stroke-width:%f;fill:none;stroke:#000000;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+#define DEFAULT_STROKE_STYLE "stroke-width:%f;fill:none;stroke:%s;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
 
-void outputBitSignal(FILE* file, var_t var, svg_settings_t settings, uint32_t y_index);
 static void outputSignal(
-    FILE* file, var_t var,
-    svg_settings_t sett, signal_settings_t sig, double start_pos_y
+FILE* file, var_t var, svg_settings_t sett, double start_pos_y
 );
 static inline uint8_t isZero(char *val);
 
@@ -27,7 +25,7 @@ static inline void outputBitFlip(
 );
 
 static inline void outputSignalText(
-    FILE *file, signal_settings_t sig, var_t var, double start_pos_y
+    FILE *file, var_t var, double start_pos_y
 );
 
 
@@ -38,20 +36,79 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
     mergeSettings(&settings);
 
+    //* Setting the viewbox
+    // There are 3 values that help set the width of the viewbox.
+    // We only need 2, sometimes only one. Here are all combinations:
+    // Waveform-width = ww; max-time = mt; time-unit-width = tuw.
+    // In this table, 1 means that the value is any nonzero positive number.
+    //    ww mt tuw
+    // 0: 0  0  0:   Error, not enough information
+    // 1: 0  0  1:   Entire waveform is outputted, scaled by using tuw.
+    // 2: 0  1  0:   Error, not enough information
+    // 3: 0  1  1:   Waveform is outputted up until mt, scaled by using tuw.
+    // 4: 1  0  0:   Entire waveform is outputted, scaled by using ww.
+    // 5: 1  0  1:   Error: This is a weird one and not yet supported.
+    // 6: 1  1  0:   Waveform is outputted up until mt,
+    //               scaled by using a combination of ww and mt.
+    // 7: 1  1  1:   Same as above, the tuw is redundant. A warning is emitted.
+
+
+    // Cases 0 and 1
+    if (settings.max_time == 0 && settings.waveform_width == 0) {
+        // Case 0
+        if (settings.time_unit_width == 0) {
+            printf(
+                "Error: At least one of "
+                "waveform-width, max-time, and time-unit-width "
+                "should be more than 0. Default is:\n"
+                "waveform-width: 0\nmax-time: 0\ntime-unit-width: 0.1\n"
+            );
+            return;
+        }
+
+        settings.max_time = vcd.max_time;
+        settings.waveform_width = vcd.max_time * settings.time_unit_width;
+    }
+    // Case 7 warning. Will now be handled as case 6.
+    else if (settings.time_unit_width != 0 && settings.waveform_width != 0) {
+        printf("Warning: time-unit-width is ignored "
+            "since waveform-width is nonzero.\n");
+    }
+
     // Make sure we don't draw a bunch of empty space.
     if (settings.max_time > vcd.max_time) settings.max_time = vcd.max_time;
-    if (settings.max_time == 0) settings.max_time = vcd.max_time;
+
+    // Cases 4 and 5
+    if (settings.max_time == 0) {
+        // Prevent case 5
+        if (settings.time_unit_width) {
+            printf("Error: waveform-width and time-unit-width "
+                "set exclusively. This is not yet supported.\n");
+            return;
+        }
+
+        // Case 4
+        settings.max_time = vcd.max_time;
+    }
+
+    // Cases 2 and 3
+    if (settings.waveform_width == 0){
+        if (settings.time_unit_width == 0)
+            settings.waveform_width = settings.max_time;
+        else {
+            settings.waveform_width = settings.time_unit_width * vcd.max_time;
+            settings.max_time = vcd.max_time;
+        }
+    }
+
 
     // Calculate viewbox
-    if (settings.waveform_width == 0)
-        settings.waveform_width = settings.max_time;
-
     double width = settings.waveform_width;
     double height = 0;
 
     double last_margin = 0;
     for (size_t i = 0; i < vcd.var_count; i++) {
-        signal_settings_t *sig = settings.signals + i;
+        signal_settings_t *sig = vcd.vars[i].style;
         if (sig->show) {
             printf("adding %f and %f to height\n", sig->height, sig->margin);
             height += sig->height;
@@ -82,17 +139,17 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     fprintf(file, "<g id=\"layer1\">\n");
     double y_pos = 0;
     for (size_t i = 0; i < vcd.var_count; i++) {
-        signal_settings_t sig = settings.signals[i];
-        if (!sig.show) continue;
 
         var_t var = vcd.vars[i];
+        signal_settings_t *sig = var.style;
+        if (!sig->show) continue;
         if (var.copy_of != NULL) {
             var.value_count = var.copy_of->value_count;
             var.values = var.copy_of->values;
         }
         printf("Var %zu: %s\n", i, var.name);
-        outputSignal(file, var, settings, sig, y_pos);
-        y_pos += sig.height + sig.margin;
+        outputSignal(file, var, settings, y_pos);
+        y_pos += sig->height + sig->margin;
     }
     printf("Done!\n");
 
@@ -102,8 +159,7 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 }
 
 void outputSignal(
-    FILE* file, var_t var, svg_settings_t sett, signal_settings_t sig,
-    double start_pos_y
+    FILE* file, var_t var, svg_settings_t sett, double start_pos_y
 ) {
     if (var.size == 0) return;
     if (var.value_count == 0) {
@@ -111,14 +167,17 @@ void outputSignal(
         return;
     }
 
+    signal_settings_t sig = * (signal_settings_t*) var.style;
 
     // Make the SVG nicer to work with in inkscape by setting a label.
     fprintf(file, "<g id=\"var_%ld\" inkscape:label=\"%s\">\n",
         ftell(file), var.name
     );
 
+    printf("%s: color is %s thickness is %f\n", var.name, sig.line_color, sig.line_thickness);
+
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
-        sig.line_thickness
+        sig.line_thickness, sig.line_color
     );
     fprintf(file, "id=\"waveform_%ld\"\n", ftell(file));
     fprintf(file, "inkscape:label=\"vector waveform\"\n");
@@ -189,15 +248,15 @@ void outputSignal(
 
     fprintf(file, "\"/>\n");
 
-    outputSignalText(file, sig, var, start_pos_y);
+    outputSignalText(file, var, start_pos_y);
 
     fprintf(file, "</g>\n");
 }
 
 
 static inline void outputBitFlip(
-    FILE* file, svg_settings_t sett, signal_settings_t sig, double start_pos_y,
-    uint8_t new_state, size_t time
+    FILE* file, svg_settings_t sett, signal_settings_t sig,
+    double start_pos_y, uint8_t new_state, size_t time
 ) {
     double xs = sett.waveform_width / sett.max_time;
 
@@ -271,8 +330,10 @@ static inline void outputVectorSignal(
 
 
 static inline void outputSignalText(
-    FILE *file, signal_settings_t sig, var_t var, double start_pos_y
+    FILE *file, var_t var, double start_pos_y
 ) {
+    signal_settings_t sig = * (signal_settings_t*) var.style;
+
     fprintf(file, "<text style=\"font-size:%f;", sig.font_size);
     fprintf(file, "color:black;text-anchor:end;\" ");
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",

@@ -1,10 +1,11 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #include "vcd.h"
 #include "svg.h"
+#include "signal_settings.h"
+
 
 
 void handleError(FILE *file, char *file_name, int ret);
@@ -15,6 +16,8 @@ int main(int argc, char *argv[]) {
         printf("Please at least provide the vcd file.\n");
         return -1;
     }
+
+
 
     char *file_name = argv[1];
     FILE *file = fopen(file_name, "r");
@@ -27,7 +30,6 @@ int main(int argc, char *argv[]) {
     int ret = 0;
     if (vcd.vars == NULL) ret = vcd.var_count;
 
-
     if (ret) {
         handleError(file, argv[1], ret);
         fclose(file);
@@ -35,18 +37,20 @@ int main(int argc, char *argv[]) {
     }
     fclose(file);
 
-    svg_settings_t settings = initSvgSettings(vcd.var_count);
-    settings.global.show = 1;
+    svg_settings_t *settings =
+        loadSettingsFromFile("testing/vcd2svgstyle.yaml", vcd);
 
+
+    if (settings == NULL) return -1;
 
     FILE *out_file = fopen("out.svg", "w");
 
-
     printf("Outputting svg!!\n");
-    writeSVG(out_file, vcd, settings);
-    freeVCD(vcd);
-    free(settings.signals);
+    writeSVG(out_file, vcd, *settings);
     fclose(out_file);
+
+    freeVCD(vcd);
+    freeSettings(settings);
 
     return 0;
 }

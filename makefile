@@ -17,7 +17,7 @@ fast: $(OFILES)
 	$(CC) -o vcd2svg $^ $(CFLAGS) $(LIBS) -O3
 
 
-obj/%.o: src/%.c | obj/
+obj/%.o: src/%.c $(HFILES) | obj/
 	$(CC) -c -o $@ $< $(CFLAGS) -g
 
 obj/:

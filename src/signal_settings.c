@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "svg.h"
+#include "signal_settings.h"
 
 #include <cyaml/cyaml.h>
 
@@ -29,42 +29,98 @@ const svg_settings_t default_settings = {
 };
 
 
-typedef struct {
-    char *id;
-    float thickness;
-    float slope_width;
-    char *color;
-} var_style_t;
-
-
-typedef struct {
-    size_t styles_count;
-    var_style_t *styles;
-    float katten;
-} styles_t;
-
-
-/******************************************************************************
- * CYAML schema to tell libcyaml about both expected YAML and data structure.
- *
- * (Our CYAML schema is just a bunch of static const data.)
- ******************************************************************************/
 
 static const cyaml_schema_field_t style_field[] = {
     CYAML_FIELD_STRING_PTR(
-        "id", CYAML_FLAG_POINTER, var_style_t, id, 0, CYAML_UNLIMITED
-    ),
-    CYAML_FIELD_FLOAT(
-        "thickness", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
-        var_style_t, thickness
-    ),
-    CYAML_FIELD_FLOAT(
-        "slope width", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
-        var_style_t, slope_width
+        "id", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, id, 0, CYAML_UNLIMITED
     ),
     CYAML_FIELD_STRING_PTR(
-        "color", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
-        var_style_t, color, 0, CYAML_UNLIMITED
+        "path", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, path, 0, CYAML_UNLIMITED
+    ),
+
+    CYAML_FIELD_BOOL(
+        "show", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, show
+    ),
+
+    CYAML_FIELD_FLOAT(
+        "height", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, height
+    ),
+    CYAML_FIELD_FLOAT(
+        "slope-width", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, slope_width
+    ),
+    CYAML_FIELD_FLOAT(
+        "margin", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, margin
+    ),
+    CYAML_FIELD_FLOAT(
+        "line-thickness", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, line_thickness
+    ),
+    CYAML_FIELD_FLOAT(
+        "text-margin", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, text_margin
+    ),
+    CYAML_FIELD_FLOAT(
+        "font-size", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, font_size
+    ),
+
+    CYAML_FIELD_STRING_PTR(
+        "line-flolor", CYAML_FLAG_POINTER,
+        signal_settings_t, line_color, 0, CYAML_UNLIMITED
+    ),
+    CYAML_FIELD_STRING_PTR(
+        "text-color", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, text_color, 0, CYAML_UNLIMITED
+    ),
+
+    CYAML_FIELD_END
+};
+
+// Subtly different in that there's no ID or Path
+static const cyaml_schema_field_t global_style_field[] = {
+    CYAML_FIELD_BOOL(
+        "show", CYAML_FLAG_STRICT,
+        signal_settings_t, show
+    ),
+
+    CYAML_FIELD_FLOAT(
+        "height", CYAML_FLAG_STRICT,
+        signal_settings_t, height
+    ),
+    CYAML_FIELD_FLOAT(
+        "slope-width", CYAML_FLAG_STRICT,
+        signal_settings_t, slope_width
+    ),
+    CYAML_FIELD_FLOAT(
+        "margin", CYAML_FLAG_STRICT,
+        signal_settings_t, margin
+    ),
+    CYAML_FIELD_FLOAT(
+        "line-thickness", CYAML_FLAG_STRICT,
+        signal_settings_t, line_thickness
+    ),
+    CYAML_FIELD_FLOAT(
+        "text-margin", CYAML_FLAG_STRICT,
+        signal_settings_t, text_margin
+    ),
+    CYAML_FIELD_FLOAT(
+        "font-size", CYAML_FLAG_STRICT,
+        signal_settings_t, font_size
+    ),
+
+    CYAML_FIELD_STRING_PTR(
+        "line-color", CYAML_FLAG_POINTER,
+        signal_settings_t, line_color, 0, CYAML_UNLIMITED
+    ),
+    CYAML_FIELD_STRING_PTR(
+        "text-color", CYAML_FLAG_POINTER,
+        signal_settings_t, text_color, 0, CYAML_UNLIMITED
     ),
 
     CYAML_FIELD_END
@@ -75,54 +131,89 @@ static const cyaml_schema_field_t style_field[] = {
 /* CYAML value schema for the top level mapping. */
 static const cyaml_schema_value_t style_schema = {
     CYAML_VALUE_MAPPING(CYAML_FLAG_DEFAULT,
-        var_style_t, style_field),
+        signal_settings_t, style_field),
 };
 
 
 
 static const cyaml_schema_field_t top_field[] = {
-    CYAML_FIELD_SEQUENCE(
-        "styles", CYAML_FLAG_POINTER,
-        styles_t, styles,
-        &style_schema, 0, CYAML_UNLIMITED),
-    CYAML_FIELD_FLOAT("katten", CYAML_FLAG_DEFAULT, styles_t, katten),
+    CYAML_FIELD_SEQUENCE_COUNT(
+        "signals", CYAML_FLAG_POINTER, svg_settings_t, signals, signal_count,
+        &style_schema, 0, CYAML_UNLIMITED
+    ),
+    CYAML_FIELD_MAPPING(
+        "global", CYAML_FLAG_STRICT, svg_settings_t, global, global_style_field
+    ),
+    CYAML_FIELD_FLOAT(
+        "waveform-width", CYAML_FLAG_STRICT, svg_settings_t, waveform_width
+    ),
+    CYAML_FIELD_INT(
+        "max-time", CYAML_FLAG_STRICT, svg_settings_t, max_time
+    ),
+    CYAML_FIELD_FLOAT(
+        "time-unit-width", CYAML_FLAG_STRICT, svg_settings_t, time_unit_width
+    ),
     CYAML_FIELD_END
 };
 
 /* CYAML value schema for the top level mapping. */
 static const cyaml_schema_value_t top_schema = {
     CYAML_VALUE_MAPPING(CYAML_FLAG_POINTER,
-        styles_t, top_field),
+        svg_settings_t, top_field),
 };
 
 
 static const cyaml_config_t config = {
     .log_fn = cyaml_log,            /* Use the default logging function. */
     .mem_fn = cyaml_mem,            /* Use the default memory allocator. */
-    .log_level = CYAML_LOG_WARNING, /* Logging errors and warnings only. */
+    .log_level = CYAML_LOG_WARNING,
+    // .log_level = CYAML_LOG_DEBUG,
 };
 
 
-/* Main entry point from OS. */
-int loadYaml(char *file_name)
-{
+
+svg_settings_t *loadSettingsFromFile(char *file_name, vcd_t vcd) {
     cyaml_err_t err;
-    styles_t *n;
+    svg_settings_t *settings;
 
 
+    err = cyaml_load_file(
+        file_name, &config, &top_schema, (void **)&settings, NULL
+    );
 
-    /* Load input file. */
-    err = cyaml_load_file(file_name, &config,
-            &top_schema, (cyaml_data_t **)&n, NULL);
     if (err != CYAML_OK) {
         fprintf(stderr, "ERROR: %s\n", cyaml_strerror(err));
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    /* Free the data */
-    cyaml_free(&config, &top_schema, n, 0);
+    // These are not guaranteed to be in the correct order at all
+    // so we need to put them in the correct order
+    for (size_t i = 0; i < settings->signal_count; i++) {
+        signal_settings_t *sig = settings->signals + i;
+        var_t *var = NULL;
+        if (sig->id != NULL) var = getVarById(&vcd, sig->id);
+        else if (sig->path != NULL) var = getVarByPath(&vcd, sig->path);
+        if (var == NULL) {
+            printf("Error: Could not find signal %zu "
+                "of yaml file by path or id.\n", i);
+            return NULL;
+        }
+        var->style = sig;
+    }
 
-    return EXIT_SUCCESS;
+    // Set the style for all variables that weren't mentioned to the global one.
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        if (vcd.vars[i].style == NULL) {
+            vcd.vars[i].style = &settings->global;
+        }
+    }
+
+    return settings;
+}
+
+void freeSettings(svg_settings_t *settings) {
+    cyaml_free(&config, &top_schema, settings, 0);
+
 }
 
 
@@ -137,7 +228,10 @@ svg_settings_t initSvgSettings(size_t count) {
     return ret;
 }
 
-
+//TODO: You fucked this up. Think of a way to do this better.
+//TODO: Remember: var_t now holds a pointer to a signal_settigns_t.
+//TODO: svg_settings_t should basically only be used for storage;
+//TODO: settings.signals should basically never be accessed outside of this file.
 void mergeSettings(svg_settings_t *sett) {
     signal_settings_t *sigs = sett->signals;
     for (size_t i = 0; i < sett->signal_count; i++) {

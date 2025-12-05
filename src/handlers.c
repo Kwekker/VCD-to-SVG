@@ -16,7 +16,6 @@ static inline int find_option(
 static int countAndAllocateValues(FILE *file, vcd_t *vcd);
 static char *nextArbiLengthToken(FILE *file);
 static int countValues(FILE *file, vcd_t *vcd);
-static var_t *getVarById(vcd_t * restrict vcd, char * restrict id);
 static int handleDump(FILE *file, vcd_t* vcd);
 static inline char *leftExtend(
     size_t token_length, size_t var_length, char *token
@@ -573,16 +572,4 @@ static inline int find_option(
         }
     }
     return -1;
-}
-
-
-static var_t *getVarById(vcd_t* restrict vcd, char* restrict id) {
-
-    // printf("Looking for var id %s\n", id);
-
-    for (size_t i = 0; i < vcd->var_count; i++) {
-        if (strcmp(id, vcd->vars[i].id) == 0)
-            return &(vcd->vars[i]);
-    }
-    return NULL;
 }

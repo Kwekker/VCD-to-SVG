@@ -4,15 +4,13 @@
   "description":
     "Cool schema for svg style yaml files",
   "type": "object",
-  "required": ["show-all"],
   "properties": {
-    "waveform-width": {"type": "integer"},
+    "waveform-width": {"type": "number"},
     "max-time": {"type": "integer"},
     "time-unit-width": {"type": "number"},
-    "show-all": {"type": "boolean"},
-    "global-style": {
+    "global": {
       "$ref": "#/$defs/style",
-      "required": ["line-color" ,"text-color" ,"line-weight","slope-width","margin" ,"text-margin","font-size","height"],
+      "required": ["line-color" ,"text-color" ,"line-thickness","slope-width","margin" ,"text-margin","font-size","height"],
       "not": {
         "anyOf": [
           {"required": ["id"]},
@@ -40,9 +38,10 @@
       "properties": {
         "id": {"type": "string"},
         "path": {"type": "string"},
+        "show": {"type": "boolean"},
         "line-color"  : {"type": "string"},
         "text-color"  : {"type": "string"},
-        "line-weight" : {"type": "number"},
+        "line-thickness" : {"type": "number"},
         "slope-width" : {"type": "number"},
         "margin"  : {"type": "number"},
         "text-margin" : {"type": "number"},
