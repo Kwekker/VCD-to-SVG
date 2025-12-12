@@ -1,15 +1,13 @@
-/*
- * SPDX-License-Identifier: ISC
- *
- * Copyright (C) 2018 Michael Drake <tlsa@netsurf-browser.org>
- */
-
 #include <stdlib.h>
 #include <stdio.h>
 
 #include "signal_settings.h"
+#include "vcd.h"
 
 #include <cyaml/cyaml.h>
+#include <string.h>
+
+#define YAML_SCHEMA_LOCATION "~/.local/share/vcd2svg/yaml-schema.json"
 
 
 static double default_slope_width = 0.1;
@@ -175,6 +173,8 @@ static const cyaml_config_t config = {
     .mem_fn = cyaml_mem,            /* Use the default memory allocator. */
     .log_level = CYAML_LOG_WARNING,
     // .log_level = CYAML_LOG_DEBUG,
+
+    .flags = CYAML_CFG_STYLE_BLOCK
 };
 
 
@@ -230,6 +230,71 @@ void mergeStyles(signal_settings_t *dest, signal_settings_t *from) {
 }
 
 
-void writeTemplate(char *file_name, svg_settings_t settings) {
+static void sanitize(char *to, char *from) {
+    while(*from) {
+        if (*from == '"' || *from == '\\') {
+            *to = '\\';
+            *(to + 1) = *from;
+            to += 2;
+        }
+        else {
+            *to = *from;
+            to++;
+        }
+        from++;
+    }
+    *to = '\0';
+}
+
+
+// I know libcyaml supports outputting YAML files but:
+// - It doesn't support outputting comments
+// - It doesn't seem to support NOT outputting optional values
+// - It's a very simple yaml file
+void writeTemplate(char *file_name, vcd_t vcd) {
+    FILE* file = fopen(file_name, "w");
+
+    fprintf(file,
+        "# yaml-language-server: $schema=" YAML_SCHEMA_LOCATION "\n"
+        "# Template generated and used by vcd-to-svg\n"
+        "# https://github.com/kwekker/vcd-to-svg\n"
+        "\n"
+        "waveform-width: 0     # Use time-unit-width\n"
+        "max-time: 0           # Output everything\n"
+        "time-unit-width: 0.5  # Time units have a width of 0.1\n"
+        "\n"
+        "# The style to fall back to if a signal doesn't have one specified:\n"
+        "global:\n"
+        "  show: true\n"
+        "  line-color: black\n"
+        "  text-color: black\n"
+        "  line-thickness: 0.1\n"
+        "  slope-width: 0.1\n"
+        "  margin: 1.5\n"
+        "  text-margin: 0.5\n"
+        "  font-size: 1\n"
+        "  height: 1\n"
+        "\n"
+        "# Here you can specify the style of each individual signal:\n"
+        "signals:\n"
+    );
+
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        var_t *var = &vcd.vars[i];
+
+        char id[MAX_ID_LENGTH * 2 + 1];
+        char name[strlen(var->name) * 2 + 1];
+
+        sanitize(id, var->id);
+        sanitize(name, var->name);
+
+
+        fprintf(file,
+            "  - path: \"%s\"\n"
+            "    id: \"%s\"\n\n", name, id
+
+        );
+    }
+
 
 }

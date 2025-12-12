@@ -85,7 +85,7 @@ typedef struct var_s {
 } var_t;
 
 
-typedef struct {
+typedef struct vcd_s {
     int8_t timescale_power; // s = 0, ms = -3, 10us = -5, etc
     var_t *vars;
     char *current_path;

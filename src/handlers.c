@@ -157,15 +157,12 @@ int handleTimescale(FILE *file, vcd_t* vcd) {
         unit_buf = buf + base_power + 1;
     }
 
-    printf("Unit buf is %s\n", buf);
     char units[6][3] = {"s", "ms", "us", "ns", "ps", "fs"};
     int unit_power = find_option(units[0], unit_buf, 6, 3);
     if (unit_power == -1) return ERR_INVALID_TIMESCALE;
     unit_power = 0 - unit_power * 3;
 
     vcd->timescale_power = unit_power + base_power;
-
-    printf("Timescale is %d\n", vcd->timescale_power);
 
     return seekEnd(file);
 }

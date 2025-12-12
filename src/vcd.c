@@ -77,18 +77,18 @@ vcd_t interpretVCD(FILE *file) {
 
     }
 
-    printf("\n\n");
-    for (size_t i = 0; i < vcd.var_count; i++) {
-        var_t var = vcd.vars[i];
+    // printf("\n\n");
+    // for (size_t i = 0; i < vcd.var_count; i++) {
+    //     var_t var = vcd.vars[i];
 
-        printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
+    //     printf("Var %3zu: %s, %s, %zu, %d\n", i, var.id, var.name, var.size, var.type);
         // for (size_t j = 0; j < var.value_count; j++) {
         //     if (var.size == 1)
         //         printf("\t %3zu: %c\n", j, var.values[j].value_char);
         //     else
         //         printf("\t %3zu: %s\n", j, var.values[j].value_string);
         // }
-    }
+    // }
 
     return vcd;
 }
@@ -275,3 +275,4 @@ int applySettings(vcd_t *vcd, svg_settings_t settings) {
 
     return 0;
 }
+

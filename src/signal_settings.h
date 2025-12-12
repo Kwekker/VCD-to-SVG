@@ -5,7 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-
+struct vcd_s;
 
 
 //               slope_width
@@ -61,6 +61,6 @@ void mergeStyles(signal_settings_t *dest, signal_settings_t *from);
 svg_settings_t *loadSettingsFromFile(char *file_name);
 void freeSettings(svg_settings_t *settings);
 
-void writeTemplate(char *file_name, svg_settings_t settings);
+void writeTemplate(char *file_name, struct vcd_s vcd);
 
 #endif

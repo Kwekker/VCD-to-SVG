@@ -21,7 +21,6 @@ int main(int argc, char *argv[]) {
     }
 
 
-
     char *file_name = argv[1];
     FILE *file = fopen(file_name, "r");
     if (file == NULL) {
@@ -39,6 +38,9 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     fclose(file);
+
+    writeTemplate("template.yaml", vcd);
+    return 0;
 
     svg_settings_t *settings =
         loadSettingsFromFile("testing/vcd2svgstyle.yaml");
