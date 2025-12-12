@@ -7,6 +7,9 @@
 #include "signal_settings.h"
 
 
+//TODO: Go through all mallocs and callocs and reallocs and
+//TODO: add a NULL check to make the program more safe.
+
 
 void handleError(FILE *file, char *file_name, int ret);
 
@@ -38,10 +41,23 @@ int main(int argc, char *argv[]) {
     fclose(file);
 
     svg_settings_t *settings =
-        loadSettingsFromFile("testing/vcd2svgstyle.yaml", vcd);
+        loadSettingsFromFile("testing/vcd2svgstyle.yaml");
+    if (settings == NULL) {
+        printf(
+            "Something went wrong when loading the YAML file.\n"
+            "Exiting.\n"
+        );
+        return -1;
+    }
 
-
-    if (settings == NULL) return -1;
+    ret = applySettings(&vcd, *settings);
+    if (ret) {
+        printf(
+            "Something went wrong when applying the YAML settings.\n"
+            "Exiting.\n"
+        );
+        return -1;
+    }
 
     FILE *out_file = fopen("out.svg", "w");
 

@@ -17,7 +17,7 @@ static inline uint8_t isZero(char *val);
 // These are inline because they're only run once.
 static inline void outputVectorSignal(
     FILE* file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
-    double start_pos_y, size_t prev_time, uint8_t was_zero
+    double start_pos_y, double prev_time, uint8_t was_zero
 );
 static inline void outputBitFlip(
     FILE* file, svg_settings_t sett, signal_settings_t sig,
@@ -108,12 +108,12 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
     double last_margin = 0;
     for (size_t i = 0; i < vcd.var_count; i++) {
-        signal_settings_t *sig = vcd.vars[i].style;
-        if (sig->show) {
-            printf("adding %f and %f to height\n", sig->height, sig->margin);
-            height += sig->height;
-            height += sig->margin;
-            last_margin = sig->margin;
+        signal_settings_t sig = vcd.vars[i].style;
+        if (sig.show) {
+            printf("adding %f and %f to height\n", sig.height, sig.margin);
+            height += sig.height;
+            height += sig.margin;
+            last_margin = sig.margin;
         }
     }
     height -= last_margin;
@@ -141,15 +141,15 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     for (size_t i = 0; i < vcd.var_count; i++) {
 
         var_t var = vcd.vars[i];
-        signal_settings_t *sig = var.style;
-        if (!sig->show) continue;
+        signal_settings_t sig = var.style;
+        if (!sig.show) continue;
         if (var.copy_of != NULL) {
             var.value_count = var.copy_of->value_count;
             var.values = var.copy_of->values;
         }
         printf("Var %zu: %s\n", i, var.name);
         outputSignal(file, var, settings, y_pos);
-        y_pos += sig->height + sig->margin;
+        y_pos += sig.height + sig.margin;
     }
     printf("Done!\n");
 
@@ -167,14 +167,13 @@ void outputSignal(
         return;
     }
 
-    signal_settings_t sig = * (signal_settings_t*) var.style;
+    signal_settings_t sig = var.style;
 
     // Make the SVG nicer to work with in inkscape by setting a label.
     fprintf(file, "<g id=\"var_%ld\" inkscape:label=\"%s\">\n",
         ftell(file), var.name
     );
 
-    printf("%s: color is %s thickness is %f\n", var.name, sig.line_color, sig.line_thickness);
 
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
         sig.line_thickness, sig.line_color
@@ -183,7 +182,6 @@ void outputSignal(
     fprintf(file, "inkscape:label=\"vector waveform\"\n");
 
 
-    double start_pos_x = -sig.slope_width / 2;
     double xs = sett.waveform_width / sett.max_time;
 
     // current_state is 0 if all values are 0, otherwise it is 1.
@@ -196,8 +194,8 @@ void outputSignal(
     size_t prev_time = 0;
 
     // Always start the svg 'curcor' at the bottom of the signal.
-    fprintf(file, "d=\"M %f %f ",
-        start_pos_x, start_pos_y + sig.height
+    fprintf(file, "d=\"M 0 %f ",
+        start_pos_y + sig.height
     );
 
     size_t line_count = 0;
@@ -230,12 +228,16 @@ void outputSignal(
         else {
             outputBitFlip(file, sett, sig, start_pos_y, !is_zero, val.time);
         }
+        prev_time = val.time;
 
     }
 
     // Draw a final line if the signal got cut off,
     // or if we haven't drawn anything yet.
     if (prev_time != sett.max_time || line_count == 0) {
+        printf("Drawing final part because %zu != %zu or %zu == 0\n",
+            prev_time, sett.max_time, line_count
+        );
         double final_time = sett.max_time;
         fprintf(file, "H %f", xs*final_time);
         if (!was_zero && var.size > 1) {
@@ -273,7 +275,7 @@ static inline void outputBitFlip(
 // was the best thing I could come up with here, unfortunately.
 static inline void outputVectorSignal(
     FILE* file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
-    double start_pos_y, size_t prev_time, uint8_t was_zero
+    double start_pos_y, double prev_time, uint8_t was_zero
 ) {
     double xs = sett.waveform_width / sett.max_time;
     uint8_t is_zero = isZero(val.value_string);
@@ -282,6 +284,8 @@ static inline void outputVectorSignal(
     //   1. Transition from a value to 0
     //   2. Transition from a value to another value
     //   3. Transition from 0 to a value
+
+    if (prev_time == 0) prev_time = -sig.slope_width / 2;
 
     if (is_zero) { // From a value to zero
         // Bottom line that ends  in the middle of /
@@ -332,12 +336,13 @@ static inline void outputVectorSignal(
 static inline void outputSignalText(
     FILE *file, var_t var, double start_pos_y
 ) {
-    signal_settings_t sig = * (signal_settings_t*) var.style;
+    signal_settings_t sig = var.style;
 
     fprintf(file, "<text style=\"font-size:%f;", sig.font_size);
     fprintf(file, "color:black;text-anchor:end;\" ");
+    double y_pos = start_pos_y + sig.height / 2 + sig.font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
-        -sig.text_margin, sig.height + start_pos_y,
+        -sig.text_margin, y_pos,
         ftell(file)
     );
 

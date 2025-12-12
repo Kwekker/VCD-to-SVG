@@ -1,16 +1,37 @@
-katten: 0.3
+# yaml-language-server: $schema=../yaml-schema.json
 
-styles:
-  - thickness: 48.23
-    id: asldfjhatsune_miku
+waveform-width: 0     # Use time-unit-width
+max-time: 0           # Output everything
+time-unit-width: 0.5  # Time units have a width of 0.1
 
-  - id: kasane_teto
-    thickness: 3242.2
 
-  - id: floeper poeper
-    thickness: 234.0
-    slope width: 0.5
-    color: |
-      hahaha
-      Dit is een hele lange text
-      wowowowow
+# The style to fall back to
+# if a signal doesn't have one specified:
+global:
+  show: true
+  line-color: black
+  text-color: black
+  line-thickness: 0.1
+  slope-width: 0.1
+  margin: 1.5
+  text-margin: 0.5
+  font-size: 1
+  height: 1
+
+signals:
+  # I will add support for finding the
+  # signals by using a path later.
+  - path: simple_tb/dut/data_in
+    id: $
+    show: true
+    line-color: red
+    text-color: black
+    line-thickness: 0.05
+    slope-width: 0.1
+    margin: 1.5
+    text-margin: 0.5
+    font-size: 1
+    height: 2
+
+  - path: simple_tb/in_word
+    show: false

@@ -6,6 +6,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#include "signal_settings.h"
+
 // I will reorder these some day
 #define ERR_FILE_ENDS -1
 #define ERR_INVALID_COMMAND -2
@@ -79,7 +81,7 @@ typedef struct var_s {
     // A pointer to a signal_settings_t struct.
     // Including signal_settings.h here would lead to a dependency cycle,
     // so it's a void pointer.
-    void *style;
+    signal_settings_t style;
 } var_t;
 
 
@@ -102,7 +104,7 @@ void freeVCD(vcd_t vcd);
 var_t* getVarById(vcd_t* restrict vcd, char* restrict id);
 var_t* getVarByPath(vcd_t* restrict vcd, char* restrict path);
 
-
+int applySettings(vcd_t *vcd, svg_settings_t settings);
 
 
 #endif

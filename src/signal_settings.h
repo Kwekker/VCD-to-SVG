@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "vcd.h"
 
 
 
@@ -26,7 +25,9 @@
 typedef struct {
     char *id;
     char *path;
-    uint8_t show;
+     // show is a pointer do differentiate between false and no entry,
+     // since libcyaml doesn't support default values.
+    uint8_t *show;
     double height;
     double slope_width;
     double margin;
@@ -53,7 +54,7 @@ typedef struct {
 
 
 #define IGNORED_SETTINGS (signal_settings_t){\
-    .show           = 0xff,    \
+    .show           = NULL,    \
     .height         = 0,    \
     .slope_width    = 0,    \
     .margin         = -1,   \
@@ -67,7 +68,7 @@ svg_settings_t initSvgSettings(size_t count);
 signal_settings_t getSettings(svg_settings_t *sett, size_t index);
 void mergeSettings(svg_settings_t *sett);
 
-svg_settings_t *loadSettingsFromFile(char *file_name, vcd_t vcd);
+svg_settings_t *loadSettingsFromFile(char *file_name);
 void freeSettings(svg_settings_t *settings);
 
 #endif

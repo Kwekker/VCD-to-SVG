@@ -40,8 +40,8 @@ static const cyaml_schema_field_t style_field[] = {
         signal_settings_t, path, 0, CYAML_UNLIMITED
     ),
 
-    CYAML_FIELD_BOOL(
-        "show", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+    CYAML_FIELD_BOOL_PTR(
+        "show", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         signal_settings_t, show
     ),
 
@@ -71,7 +71,7 @@ static const cyaml_schema_field_t style_field[] = {
     ),
 
     CYAML_FIELD_STRING_PTR(
-        "line-flolor", CYAML_FLAG_POINTER,
+        "line-color", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         signal_settings_t, line_color, 0, CYAML_UNLIMITED
     ),
     CYAML_FIELD_STRING_PTR(
@@ -84,8 +84,8 @@ static const cyaml_schema_field_t style_field[] = {
 
 // Subtly different in that there's no ID or Path
 static const cyaml_schema_field_t global_style_field[] = {
-    CYAML_FIELD_BOOL(
-        "show", CYAML_FLAG_STRICT,
+    CYAML_FIELD_BOOL_PTR(
+        "show", CYAML_FLAG_POINTER,
         signal_settings_t, show
     ),
 
@@ -172,7 +172,7 @@ static const cyaml_config_t config = {
 
 
 
-svg_settings_t *loadSettingsFromFile(char *file_name, vcd_t vcd) {
+svg_settings_t *loadSettingsFromFile(char *file_name) {
     cyaml_err_t err;
     svg_settings_t *settings;
 
@@ -184,28 +184,6 @@ svg_settings_t *loadSettingsFromFile(char *file_name, vcd_t vcd) {
     if (err != CYAML_OK) {
         fprintf(stderr, "ERROR: %s\n", cyaml_strerror(err));
         return NULL;
-    }
-
-    // These are not guaranteed to be in the correct order at all
-    // so we need to put them in the correct order
-    for (size_t i = 0; i < settings->signal_count; i++) {
-        signal_settings_t *sig = settings->signals + i;
-        var_t *var = NULL;
-        if (sig->id != NULL) var = getVarById(&vcd, sig->id);
-        else if (sig->path != NULL) var = getVarByPath(&vcd, sig->path);
-        if (var == NULL) {
-            printf("Error: Could not find signal %zu "
-                "of yaml file by path or id.\n", i);
-            return NULL;
-        }
-        var->style = sig;
-    }
-
-    // Set the style for all variables that weren't mentioned to the global one.
-    for (size_t i = 0; i < vcd.var_count; i++) {
-        if (vcd.vars[i].style == NULL) {
-            vcd.vars[i].style = &settings->global;
-        }
     }
 
     return settings;
@@ -228,10 +206,7 @@ svg_settings_t initSvgSettings(size_t count) {
     return ret;
 }
 
-//TODO: You fucked this up. Think of a way to do this better.
-//TODO: Remember: var_t now holds a pointer to a signal_settigns_t.
-//TODO: svg_settings_t should basically only be used for storage;
-//TODO: settings.signals should basically never be accessed outside of this file.
+
 void mergeSettings(svg_settings_t *sett) {
     signal_settings_t *sigs = sett->signals;
     for (size_t i = 0; i < sett->signal_count; i++) {

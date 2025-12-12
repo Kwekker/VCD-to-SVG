@@ -3,7 +3,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
 
 #include "vcd.h"
 #include "handlers.h"
@@ -219,4 +218,58 @@ var_t* getVarByPath(vcd_t* restrict vcd, char* restrict path) {
     }
 
     return NULL;
+}
+
+
+
+int applySettings(vcd_t *vcd, svg_settings_t settings) {
+    // These are not guaranteed to be in the correct order at all.
+    for (size_t i = 0; i < settings.signal_count; i++) {
+        signal_settings_t sig = settings.signals[i];
+        var_t *var = NULL;
+
+
+        if (sig.id != NULL) var = getVarById(vcd, sig.id);
+        else if (sig.path != NULL) var = getVarByPath(vcd, sig.path);
+        else {
+            printf("Error: No path or ID specified for signal with index %zu"
+                "of yaml file.\n", i);
+            return -1;
+        }
+
+        if (var == NULL) {
+            printf("Error: Could not find signal %zu ", i);
+            if (sig.id != NULL) printf("with id \"%s\" ", sig.id);
+            else if (sig.path != NULL) printf("with path \"%s\" ", sig.path);
+            printf("in the VCD file.\n");
+            return -1;
+        }
+
+        printf("Checking %s/%s which is var %s\n", sig.id, sig.path, var->name);
+
+
+        // Since the style is copied, the id field doesn't serve a function
+        // anymore. We can use it to mark vars we've already encountered in
+        // this pass, to make sure there aren't duplicates in the yaml file.
+        if (var->style.id == (void*)1) {
+            printf(
+                "Error: duplicate signal in yaml file. "
+                "%s appears more than once\n", var->name
+            );
+            return -1;
+        }
+        var->style = sig;
+        var->style.id = (void*)1; // Mark the var.
+
+    }
+
+    // Set the style for all variables that weren't mentioned to the global one.
+    for (size_t i = 0; i < vcd->var_count; i++) {
+        vcd->vars[i].style.id = NULL; // Remove the marking from all vars.
+        if (vcd->vars[i].style.show == NULL) {
+            vcd->vars[i].style = settings.global;
+        }
+    }
+
+    return 0;
 }
