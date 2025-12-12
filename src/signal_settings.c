@@ -11,12 +11,17 @@
 
 #include <cyaml/cyaml.h>
 
+
+static double default_slope_width = 0.1;
+static double default_margin      = 1.5;
+static double default_text_margin = 0.5;
+
 const signal_settings_t default_sig_settings = {
     .height         = 1,
-    .slope_width    = 0.1,
-    .margin         = 1.5,
+    .slope_width    = &default_slope_width,
+    .margin         = &default_margin,
     .line_thickness = 0.1,
-    .text_margin    = 0.5,
+    .text_margin    = &default_text_margin,
     .font_size      = 1,
 };
 
@@ -41,6 +46,7 @@ static const cyaml_schema_field_t style_field[] = {
     ),
 
     CYAML_FIELD_BOOL_PTR(
+        // Ptr because we need to differentiate between unset and 0
         "show", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         signal_settings_t, show
     ),
@@ -49,20 +55,21 @@ static const cyaml_schema_field_t style_field[] = {
         "height", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
         signal_settings_t, height
     ),
-    CYAML_FIELD_FLOAT(
-        "slope-width", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+    CYAML_FIELD_FLOAT_PTR(
+        // Ptr because we need to differentiate between unset and 0
+        "slope-width", CYAML_FLAG_OPTIONAL | CYAML_FLAG_POINTER,
         signal_settings_t, slope_width
     ),
-    CYAML_FIELD_FLOAT(
-        "margin", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+    CYAML_FIELD_FLOAT_PTR(
+        "margin", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         signal_settings_t, margin
     ),
     CYAML_FIELD_FLOAT(
         "line-thickness", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
         signal_settings_t, line_thickness
     ),
-    CYAML_FIELD_FLOAT(
-        "text-margin", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+    CYAML_FIELD_FLOAT_PTR(
+        "text-margin", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
         signal_settings_t, text_margin
     ),
     CYAML_FIELD_FLOAT(
@@ -93,20 +100,20 @@ static const cyaml_schema_field_t global_style_field[] = {
         "height", CYAML_FLAG_STRICT,
         signal_settings_t, height
     ),
-    CYAML_FIELD_FLOAT(
-        "slope-width", CYAML_FLAG_STRICT,
+    CYAML_FIELD_FLOAT_PTR(
+        "slope-width", CYAML_FLAG_POINTER,
         signal_settings_t, slope_width
     ),
-    CYAML_FIELD_FLOAT(
-        "margin", CYAML_FLAG_STRICT,
+    CYAML_FIELD_FLOAT_PTR(
+        "margin", CYAML_FLAG_POINTER,
         signal_settings_t, margin
     ),
     CYAML_FIELD_FLOAT(
         "line-thickness", CYAML_FLAG_STRICT,
         signal_settings_t, line_thickness
     ),
-    CYAML_FIELD_FLOAT(
-        "text-margin", CYAML_FLAG_STRICT,
+    CYAML_FIELD_FLOAT_PTR(
+        "text-margin", CYAML_FLAG_POINTER,
         signal_settings_t, text_margin
     ),
     CYAML_FIELD_FLOAT(
@@ -197,40 +204,32 @@ void freeSettings(svg_settings_t *settings) {
 
 svg_settings_t initSvgSettings(size_t count) {
     svg_settings_t ret = default_settings;
-    ret.signals = malloc(count * sizeof(signal_settings_t));
-    for (size_t i = 0; i < count; i++) {
-        ret.signals[i] = IGNORED_SETTINGS;
-    }
+
+    ret.signals = calloc(count, sizeof(signal_settings_t));
     ret.signal_count = count;
 
     return ret;
 }
 
 
-void mergeSettings(svg_settings_t *sett) {
-    signal_settings_t *sigs = sett->signals;
-    for (size_t i = 0; i < sett->signal_count; i++) {
-        sigs[i] = getSettings(sett, i);
-    }
+void mergeStyles(signal_settings_t *dest, signal_settings_t *from) {
+    // Please tell me if you know a better way to do this.
+
+    printf("%s:%s  %s\t<-\t", dest->id, dest->path, dest->line_color);
+    printf("%s:%s  %s\n", from->id, from->path, from->line_color);
+
+    if (dest->show == NULL) dest->show = from->show;
+    if (dest->slope_width == NULL) dest->slope_width = from->slope_width;
+    if (dest->height == 0) dest->height = from->height;
+    if (dest->margin == NULL) dest->margin = from->margin;
+    if (dest->line_thickness == 0) dest->line_thickness = from->line_thickness;
+    if (dest->text_margin == NULL) dest->text_margin = from->text_margin;
+    if (dest->font_size == 0) dest->font_size = from->font_size;
+    if (dest->text_color == NULL) dest->text_color = from->text_color;
+    if (dest->line_color == NULL) dest->line_color = from->line_color;
 }
 
 
-signal_settings_t getSettings(svg_settings_t *sett, size_t index) {
-    signal_settings_t ret = sett->global;
-    if (sett->signals == NULL) return ret;
+void writeTemplate(char *file_name, svg_settings_t settings) {
 
-    signal_settings_t s = sett->signals[index];
-    const signal_settings_t ignore = IGNORED_SETTINGS;
-
-
-    if (s.show != ignore.show) ret.show = s.show;
-    if (s.height != ignore.height) ret.height = s.height;
-    if (s.slope_width != ignore.slope_width) ret.slope_width = s.slope_width;
-    if (s.margin != ignore.margin) ret.margin = s.margin;
-    if (s.line_thickness != ignore.line_thickness)
-        ret.line_thickness = s.line_thickness;
-    if (s.text_margin != ignore.text_margin) ret.text_margin = s.text_margin;
-    if (s.font_size != ignore.font_size) ret.font_size = s.font_size;
-
-    return ret;
 }

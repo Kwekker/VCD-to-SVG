@@ -34,8 +34,6 @@ static inline void outputSignalText(
 // is completely allocated and initialized.
 void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
 
-    mergeSettings(&settings);
-
     //* Setting the viewbox
     // There are 3 values that help set the width of the viewbox.
     // We only need 2, sometimes only one. Here are all combinations:
@@ -110,10 +108,10 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
     for (size_t i = 0; i < vcd.var_count; i++) {
         signal_settings_t sig = vcd.vars[i].style;
         if (sig.show) {
-            printf("adding %f and %f to height\n", sig.height, sig.margin);
+            printf("adding %f and %f to height\n", sig.height, *sig.margin);
             height += sig.height;
-            height += sig.margin;
-            last_margin = sig.margin;
+            height += *sig.margin;
+            last_margin = *sig.margin;
         }
     }
     height -= last_margin;
@@ -149,7 +147,7 @@ void writeSVG(FILE *file, vcd_t vcd, svg_settings_t settings) {
         }
         printf("Var %zu: %s\n", i, var.name);
         outputSignal(file, var, settings, y_pos);
-        y_pos += sig.height + sig.margin;
+        y_pos += sig.height + *sig.margin;
     }
     printf("Done!\n");
 
@@ -174,7 +172,7 @@ void outputSignal(
         ftell(file), var.name
     );
 
-
+    printf("\t line color is %s\n", sig.line_color);
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
         sig.line_thickness, sig.line_color
     );
@@ -242,7 +240,7 @@ void outputSignal(
         fprintf(file, "H %f", xs*final_time);
         if (!was_zero && var.size > 1) {
             fprintf(file, "M %f %f H %f ",
-                xs*prev_time + sig.slope_width / 2.0, start_pos_y,
+                xs*prev_time + *sig.slope_width / 2.0, start_pos_y,
                 xs*final_time
             );
         }
@@ -263,8 +261,8 @@ static inline void outputBitFlip(
     double xs = sett.waveform_width / sett.max_time;
 
     fprintf(file, "H %f L %f %f ",
-        xs*time - sig.slope_width / 2.0,      // x1
-        xs*time + sig.slope_width / 2.0,      // x2
+        xs*time - *sig.slope_width / 2.0,      // x1
+        xs*time + *sig.slope_width / 2.0,      // x2
         start_pos_y + sig.height * !new_state // y2
     );
 }
@@ -285,48 +283,48 @@ static inline void outputVectorSignal(
     //   2. Transition from a value to another value
     //   3. Transition from 0 to a value
 
-    if (prev_time == 0) prev_time = -sig.slope_width / 2;
+    if (prev_time == 0) prev_time = -*sig.slope_width / 2;
 
     if (is_zero) { // From a value to zero
         // Bottom line that ends  in the middle of /
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - sig.slope_width / 2.0,
+            xs*val.time - *sig.slope_width / 2.0,
             xs*val.time, start_pos_y + sig.height / 2.0
         );
 
         // Top line that goes down like ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + sig.slope_width / 2.0, start_pos_y,
-            xs*val.time - sig.slope_width / 2.0,
-            xs*val.time + sig.slope_width / 2.0, start_pos_y + sig.height
+            xs*prev_time + *sig.slope_width / 2.0, start_pos_y,
+            xs*val.time - *sig.slope_width / 2.0,
+            xs*val.time + *sig.slope_width / 2.0, start_pos_y + sig.height
         );
     }
     else if (!is_zero && !was_zero) { // From a value to another value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f",
-            xs*val.time - sig.slope_width / 2.0,
-            xs*val.time + sig.slope_width / 2.0,
+            xs*val.time - *sig.slope_width / 2.0,
+            xs*val.time + *sig.slope_width / 2.0,
             start_pos_y
         );
         // Top line that goes down like  ‾‾‾‾\_
         fprintf(file, "M %f %f H %f L %f %f ",
-            xs*prev_time + sig.slope_width / 2.0, start_pos_y,
-            xs*val.time - sig.slope_width / 2.0,
-            xs*val.time + sig.slope_width / 2.0,
+            xs*prev_time + *sig.slope_width / 2.0, start_pos_y,
+            xs*val.time - *sig.slope_width / 2.0,
+            xs*val.time + *sig.slope_width / 2.0,
             start_pos_y + sig.height
         );
     }
     else if (!is_zero && was_zero) { // From zero to a value
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f ",
-            xs*val.time - sig.slope_width / 2.0,
-            xs*val.time + sig.slope_width / 2.0, start_pos_y
+            xs*val.time - *sig.slope_width / 2.0,
+            xs*val.time + *sig.slope_width / 2.0, start_pos_y
         );
         // Bottom line that goes down like    \_
         // It starts at the midpoint of the diagonal line.
         fprintf(file, "M %f %f L %f %f ",
             xs*val.time, start_pos_y + sig.height / 2.0,
-            xs*val.time + sig.slope_width / 2.0, start_pos_y + sig.height
+            xs*val.time + *sig.slope_width / 2.0, start_pos_y + sig.height
         );
     }
 }
@@ -342,7 +340,7 @@ static inline void outputSignalText(
     fprintf(file, "color:black;text-anchor:end;\" ");
     double y_pos = start_pos_y + sig.height / 2 + sig.font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
-        -sig.text_margin, y_pos,
+        - *sig.text_margin, y_pos,
         ftell(file)
     );
 

@@ -59,6 +59,12 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    // Merge the settings set by the YAML file with the global settings.
+    // If the YAML file doesn't specify a setting, it is set here.
+    for (size_t i = 0; i < vcd.var_count; i++) {
+        mergeStyles(&vcd.vars[i].style, &settings->global);
+    }
+
     FILE *out_file = fopen("out.svg", "w");
 
     printf("Outputting svg!!\n");

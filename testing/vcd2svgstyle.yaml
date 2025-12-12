@@ -9,7 +9,7 @@ time-unit-width: 0.5  # Time units have a width of 0.1
 # if a signal doesn't have one specified:
 global:
   show: true
-  line-color: black
+  line-color: green
   text-color: black
   line-thickness: 0.1
   slope-width: 0.1
@@ -24,14 +24,14 @@ signals:
   - path: simple_tb/dut/data_in
     id: $
     show: true
-    line-color: red
+    line-color: black
     text-color: black
     line-thickness: 0.05
-    slope-width: 0.1
+    slope-width: 0.75
     margin: 1.5
     text-margin: 0.5
     font-size: 1
     height: 2
 
   - path: simple_tb/in_word
-    show: false
+    line-color: red

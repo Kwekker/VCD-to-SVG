@@ -258,7 +258,9 @@ int applySettings(vcd_t *vcd, svg_settings_t settings) {
             );
             return -1;
         }
-        var->style = sig;
+
+        mergeStyles(&var->style, &sig);
+
         var->style.id = (void*)1; // Mark the var.
 
     }

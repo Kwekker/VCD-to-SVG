@@ -25,17 +25,17 @@
 typedef struct {
     char *id;
     char *path;
-     // show is a pointer do differentiate between false and no entry,
-     // since libcyaml doesn't support default values.
+    // We need to be able to differentiate between 0 and unset for this
+    // value. The only way libcyaml can do this (afaik) is by using pointers
     uint8_t *show;
     double height;
-    double slope_width;
-    double margin;
+    double *slope_width; // Same story here
+    double *margin;      // Same story here
+    double *text_margin; // Same story here
     double line_thickness;
-    double text_margin;
     double font_size;
-    char *line_color;
-    char *text_color;
+    char *line_color; // These are just strings
+    char *text_color; // These are just strings
 
 } signal_settings_t;
 
@@ -53,22 +53,14 @@ typedef struct {
 } svg_settings_t;
 
 
-#define IGNORED_SETTINGS (signal_settings_t){\
-    .show           = NULL,    \
-    .height         = 0,    \
-    .slope_width    = 0,    \
-    .margin         = -1,   \
-    .line_thickness = 0,    \
-    .text_margin    = -1,   \
-    .font_size      = 0,    \
-}
-
-
 svg_settings_t initSvgSettings(size_t count);
-signal_settings_t getSettings(svg_settings_t *sett, size_t index);
-void mergeSettings(svg_settings_t *sett);
+
+//! DO NOT RUN DIRECTLY ON THE STRUCTS FROM A YAML FILE, ONLY ON COPIES.
+void mergeStyles(signal_settings_t *dest, signal_settings_t *from);
 
 svg_settings_t *loadSettingsFromFile(char *file_name);
 void freeSettings(svg_settings_t *settings);
+
+void writeTemplate(char *file_name, svg_settings_t settings);
 
 #endif
