@@ -1,16 +1,36 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Styles",
-  "description":
-    "Cool schema for svg style yaml files",
+  "description": "Cool schema for svg style yaml files",
   "type": "object",
   "properties": {
-    "waveform-width": {"type": "number"},
-    "max-time": {"type": "integer"},
-    "time-unit-width": {"type": "number"},
+    "waveform-width": {
+      "type": "number"
+    },
+    "max-time": {
+      "type": "integer"
+    },
+    "time-unit-width": {
+      "type": "number"
+    },
     "global": {
       "$ref": "#/$defs/style",
-      "required": ["line-color" ,"text-color" ,"line-thickness","slope-width","margin" ,"text-margin","font-size","height"],
+      "required": [
+        "show",
+        "height",
+        "slope-width",
+        "margin",
+        "text-margin",
+        "line-thickness",
+        "font-size",
+        "line-color",
+        "text-color",
+        "show-value",
+        "radix",
+        "fixed-point-shift",
+        "value-font-size",
+        "value-text-color"
+      ],
       "not": {
         "anyOf": [
           {"required": ["id"]},
@@ -26,27 +46,62 @@
           {"required": ["id"]},
           {"required": ["path"]}
         ]
-
       }
-
     }
-
   },
   "$defs": {
     "style": {
       "type": "object",
       "properties": {
-        "id": {"type": "string"},
-        "path": {"type": "string"},
-        "show": {"type": "boolean"},
-        "line-color"  : {"type": "string"},
-        "text-color"  : {"type": "string"},
-        "line-thickness" : {"type": "number"},
-        "slope-width" : {"type": "number"},
-        "margin"  : {"type": "number"},
-        "text-margin" : {"type": "number"},
-        "font-size" : {"type": "number"},
-        "height"  : {"type": "number"}
+        "id": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "show": {
+          "type": "boolean"
+        },
+        "height": {
+          "type": "number"
+        },
+        "slope-width": {
+          "type": "number"
+        },
+        "margin": {
+          "type": "number"
+        },
+        "text-margin": {
+          "type": "number"
+        },
+        "line-thickness": {
+          "type": "number"
+        },
+        "font-size": {
+          "type": "number"
+        },
+        "line-color": {
+          "type": "string"
+        },
+        "text-color": {
+          "type": "string"
+        },
+
+        "show-value":{
+          "type": "boolean"
+        },
+        "radix":{
+          "type": "integer"
+        },
+        "fixed-point-shift":{
+          "type": "integer"
+        },
+        "value-font-size":{
+          "type": "number"
+        },
+        "value-text-color":{
+          "type": "string"
+        }
       }
     }
   }

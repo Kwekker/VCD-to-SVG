@@ -32,10 +32,19 @@ typedef struct {
     double *slope_width; // Same story here
     double *margin;      // Same story here
     double *text_margin; // Same story here
-    double line_thickness;
+    char *text_color;    // This is a string
     double font_size;
-    char *line_color; // These are just strings
-    char *text_color; // These are just strings
+    double line_thickness;
+    char *line_color;    // This is also just a string
+
+    uint8_t *show_value;
+    uint8_t radix;
+    uint16_t *fixed_point_shift;
+    double value_font_size;
+    char *value_text_color;
+
+    //TODO: add signed
+    //TODO: add bitwidth maybe idk
 
 } signal_settings_t;
 

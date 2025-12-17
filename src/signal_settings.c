@@ -9,18 +9,31 @@
 
 #define YAML_SCHEMA_LOCATION "~/.local/share/vcd2svg/yaml-schema.json"
 
-
+// I hate that I have to do this but libcyaml doesn't have another option.
+// And I'm not about to use libyaml for this.
 static double default_slope_width = 0.1;
 static double default_margin      = 1.5;
 static double default_text_margin = 0.5;
+static uint16_t default_fixed_point_shift = 0;
+
+static uint8_t true_bool = 1;
 
 const signal_settings_t default_sig_settings = {
+    .show           = &true_bool,
     .height         = 1,
     .slope_width    = &default_slope_width,
     .margin         = &default_margin,
-    .line_thickness = 0.1,
     .text_margin    = &default_text_margin,
+    .line_thickness = 0.1,
     .font_size      = 1,
+    .line_color     = "black",
+    .text_color     = "black",
+
+    .show_value         = &true_bool,
+    .radix              = 16,
+    .fixed_point_shift  = &default_fixed_point_shift,
+    .value_font_size    = 0.8,
+    .value_text_color   = "black"
 };
 
 const svg_settings_t default_settings = {
@@ -84,6 +97,27 @@ static const cyaml_schema_field_t style_field[] = {
         signal_settings_t, text_color, 0, CYAML_UNLIMITED
     ),
 
+    CYAML_FIELD_BOOL_PTR(
+        "show-value", CYAML_FLAG_OPTIONAL | CYAML_FLAG_POINTER,
+        signal_settings_t, show_value
+    ),
+    CYAML_FIELD_INT(
+        "radix", CYAML_FLAG_OPTIONAL,
+        signal_settings_t, radix
+    ),
+    CYAML_FIELD_INT_PTR(
+        "fixed-point-shift", CYAML_FLAG_OPTIONAL | CYAML_FLAG_POINTER,
+        signal_settings_t, fixed_point_shift
+    ),
+    CYAML_FIELD_FLOAT(
+        "value-font-size", CYAML_FLAG_OPTIONAL,
+        signal_settings_t, value_font_size
+    ),
+    CYAML_FIELD_STRING_PTR(
+        "value-text-color", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+        signal_settings_t, value_text_color, 0, CYAML_UNLIMITED
+    ),
+
     CYAML_FIELD_END
 };
 
@@ -126,6 +160,28 @@ static const cyaml_schema_field_t global_style_field[] = {
     CYAML_FIELD_STRING_PTR(
         "text-color", CYAML_FLAG_POINTER,
         signal_settings_t, text_color, 0, CYAML_UNLIMITED
+    ),
+
+
+    CYAML_FIELD_BOOL_PTR(
+        "show-value", CYAML_FLAG_POINTER,
+        signal_settings_t, show_value
+    ),
+    CYAML_FIELD_INT(
+        "radix", CYAML_FLAG_DEFAULT,
+        signal_settings_t, radix
+    ),
+    CYAML_FIELD_INT_PTR(
+        "fixed-point-shift", CYAML_FLAG_POINTER,
+        signal_settings_t, fixed_point_shift
+    ),
+    CYAML_FIELD_FLOAT(
+        "value-font-size", CYAML_FLAG_DEFAULT,
+        signal_settings_t, value_font_size
+    ),
+    CYAML_FIELD_STRING_PTR(
+        "value-text-color", CYAML_FLAG_POINTER,
+        signal_settings_t, value_text_color, 0, CYAML_UNLIMITED
     ),
 
     CYAML_FIELD_END
@@ -219,14 +275,24 @@ void mergeStyles(signal_settings_t *dest, signal_settings_t *from) {
     printf("%s:%s  %s\n", from->id, from->path, from->line_color);
 
     if (dest->show == NULL) dest->show = from->show;
-    if (dest->slope_width == NULL) dest->slope_width = from->slope_width;
     if (dest->height == 0) dest->height = from->height;
+    if (dest->slope_width == NULL) dest->slope_width = from->slope_width;
     if (dest->margin == NULL) dest->margin = from->margin;
-    if (dest->line_thickness == 0) dest->line_thickness = from->line_thickness;
     if (dest->text_margin == NULL) dest->text_margin = from->text_margin;
+    if (dest->line_thickness == 0) dest->line_thickness = from->line_thickness;
     if (dest->font_size == 0) dest->font_size = from->font_size;
-    if (dest->text_color == NULL) dest->text_color = from->text_color;
     if (dest->line_color == NULL) dest->line_color = from->line_color;
+    if (dest->text_color == NULL) dest->text_color = from->text_color;
+
+    if (dest->show_value == NULL) dest->show_value = from->show_value;
+    if (dest->radix == 0) dest->radix = from->radix;
+    if (dest->fixed_point_shift == NULL)
+        dest->fixed_point_shift = from->fixed_point_shift;
+    if (dest->value_font_size == 0)
+        dest->value_font_size = from->value_font_size;
+    if (dest->value_text_color == NULL)
+        dest->value_text_color = from->value_text_color;
+
 }
 
 
@@ -266,14 +332,20 @@ void writeTemplate(char *file_name, vcd_t vcd) {
         "# The style to fall back to if a signal doesn't have one specified:\n"
         "global:\n"
         "  show: true\n"
-        "  line-color: black\n"
-        "  text-color: black\n"
-        "  line-thickness: 0.1\n"
+        "  height: 1\n"
         "  slope-width: 0.1\n"
         "  margin: 1.5\n"
         "  text-margin: 0.5\n"
+        "  text-color: black\n"
         "  font-size: 1\n"
-        "  height: 1\n"
+        "  line-thickness: 0.1\n"
+        "  line-color: black\n"
+        "\n"
+        "  show-value: true\n"
+        "  radix: 16\n"
+        "  fixed-point-shift: 0\n"
+        "  value-font-size: 0.8\n"
+        "  value-text-color: black\n"
         "\n"
         "# Here you can specify the style of each individual signal:\n"
         "signals:\n"

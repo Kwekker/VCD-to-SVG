@@ -24,8 +24,13 @@ static inline void outputBitFlip(
     double start_pos_y, uint8_t new_state, size_t time
 );
 
-static inline void outputSignalText(
+static inline void outputSignalTitle(
     FILE *file, var_t var, double start_pos_y
+);
+
+static inline void outputSignalText(
+    FILE *file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
+    double start_pos_y
 );
 
 
@@ -246,9 +251,18 @@ void outputSignal(
         }
     }
 
+    if (sig.show_value && var.size > 1) {
+        for (size_t j = 1; j < var.value_count; j++) {
+            value_pair_t val = var.values[j];
+            outputSignalText(
+                file, sett, sig, val, start_pos_y
+            );
+        }
+    }
+
     fprintf(file, "\"/>\n");
 
-    outputSignalText(file, var, start_pos_y);
+    outputSignalTitle(file, var, start_pos_y);
 
     fprintf(file, "</g>\n");
 }
@@ -331,13 +345,13 @@ static inline void outputVectorSignal(
 
 
 
-static inline void outputSignalText(
+static inline void outputSignalTitle(
     FILE *file, var_t var, double start_pos_y
 ) {
     signal_settings_t sig = var.style;
 
     fprintf(file, "<text style=\"font-size:%f;", sig.font_size);
-    fprintf(file, "color:black;text-anchor:end;\" ");
+    fprintf(file, "color:%s;text-anchor:end;\" ", sig.text_color);
     double y_pos = start_pos_y + sig.height / 2 + sig.font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
         - *sig.text_margin, y_pos,
@@ -349,6 +363,46 @@ static inline void outputSignalText(
     fprintf(file, "%s", name);
 
     fprintf(file, "</text>");
+}
+
+
+// This function assumes sig.show_value is true.
+static inline void outputSignalText(
+    FILE *file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
+    double start_pos_y
+) {
+    double xs = sett.waveform_width / sett.max_time;
+
+    fprintf(file, "<text style=\"font-size:%f;", sig.value_font_size);
+    fprintf(file, "color:%s;text-anchor:start;\" ", sig.value_text_color);
+    double y_pos = start_pos_y + sig.height / 2 + sig.value_font_size / 2;
+    fprintf(file, "x=\"%f\" y=\"%f\" id=\"value%ld\">",
+        xs * val.time + *sig.slope_width, y_pos,
+        ftell(file)
+    );
+
+    uint64_t number = strtol(val.value_string, NULL, 2);
+
+    switch(sig.radix) {
+        case 2:
+            fprintf(file, "%s", val.value_string);
+            break;
+        case 8:
+            fprintf(file, "%lo", number);
+            break;
+        case 10:
+            fprintf(file, "%ld", number);
+            break;
+        case 16:
+            fprintf(file, "%lx", number);
+            break;
+        default:
+            fprintf(file, "Error base");
+            break;
+
+    }
+    fprintf(file, "</text>");
+
 }
 
 

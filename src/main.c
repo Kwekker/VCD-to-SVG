@@ -39,9 +39,6 @@ int main(int argc, char *argv[]) {
     }
     fclose(file);
 
-    writeTemplate("template.yaml", vcd);
-    return 0;
-
     svg_settings_t *settings =
         loadSettingsFromFile("testing/vcd2svgstyle.yaml");
     if (settings == NULL) {

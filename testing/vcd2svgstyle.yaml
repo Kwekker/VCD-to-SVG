@@ -2,28 +2,31 @@
 
 waveform-width: 0     # Use time-unit-width
 max-time: 0           # Output everything
-time-unit-width: 0.5  # Time units have a width of 0.1
+time-unit-width: 1  # Time units have a width of 0.1
 
 
-# The style to fall back to
-# if a signal doesn't have one specified:
+# The style to fall back to if a signal doesn't have one specified:
 global:
   show: true
-  line-color: green
+  height: 1
+  line-color: black
   text-color: black
   line-thickness: 0.1
   slope-width: 0.1
   margin: 1.5
   text-margin: 0.5
   font-size: 1
-  height: 1
+
+  show-value: true
+  radix: 16
+  fixed-point-shift: 0
+  value-font-size: 0.5
+  value-text-color: black
+
 
 signals:
-  # I will add support for finding the
-  # signals by using a path later.
   - path: simple_tb/dut/data_in
     id: $
-    show: true
     line-color: black
     text-color: black
     line-thickness: 0.05
