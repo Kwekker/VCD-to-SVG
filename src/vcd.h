@@ -66,6 +66,7 @@ typedef struct {
     };
     // If the time values exceed 2^64 something is wrong at the generation side.
     size_t time;
+    uint8_t duplicate;
 } value_pair_t;
 
 

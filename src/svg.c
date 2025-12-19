@@ -28,9 +28,9 @@ static inline void outputSignalTitle(
     FILE *file, var_t var, double start_pos_y
 );
 
-static inline void outputSignalText(
+static inline void outputValueText(
     FILE *file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
-    double start_pos_y
+    double end_time, double start_pos_y
 );
 
 
@@ -205,33 +205,37 @@ void outputSignal(
 
 
     for (size_t j = 1; j < var.value_count; j++) {
-        value_pair_t val = var.values[j];
-        if (val.time > sett.max_time) break;
+        value_pair_t *val = &var.values[j];
+        if (val->time > sett.max_time) break;
 
 
         uint8_t is_zero = 0;
-        if (var.size == 1) is_zero = val.value_char == '1';
-        else is_zero = isZero(val.value_string);
+        if (var.size == 1) is_zero = val->value_char == '1';
+        else is_zero = isZero(val->value_string);
 
         // Continue if the value didn't change.
         if (is_zero && was_zero) continue;
         char* prev = var.values[j-1].value_string;
         if (var.size > 1 && (
-            !is_zero && memcmp(val.value_string, prev, var.size) == 0
-        )) continue;
+            !is_zero && memcmp(val->value_string, prev, var.size) == 0
+        )) {
+            // Mark value as duplicate for later when we're emitting text.
+            val->duplicate = 1;
+            continue;
+        }
 
         // Keep track of line count to handle an edge case that's described a
         // bit further.
         line_count++;
         if (var.size > 1) {
             outputVectorSignal(
-                file, sett, sig, val, start_pos_y, prev_time, was_zero
+                file, sett, sig, *val, start_pos_y, prev_time, was_zero
             );
         }
         else {
-            outputBitFlip(file, sett, sig, start_pos_y, !is_zero, val.time);
+            outputBitFlip(file, sett, sig, start_pos_y, !is_zero, val->time);
         }
-        prev_time = val.time;
+        prev_time = val->time;
 
     }
 
@@ -252,10 +256,28 @@ void outputSignal(
     }
 
     if (sig.show_value && var.size > 1) {
-        for (size_t j = 1; j < var.value_count; j++) {
+        for (size_t j = 0; j < var.value_count; j++) {
             value_pair_t val = var.values[j];
-            outputSignalText(
-                file, sett, sig, val, start_pos_y
+            // Skip duplicate values here as well.
+            if (val.duplicate) continue;
+
+            // Measure the end time of this value so that we don't put text
+            // over other values.
+            double end_time;
+            if (j == var.value_count - 1) end_time = sett.max_time;
+            else {
+                // Find next non-duplicate value to figure out the end-time.
+                size_t next = j + 1;
+                while (var.values[next].duplicate) next++;
+                end_time = var.values[next].time;
+            }
+
+            // Finally, end-time could be beyond the image border, so:
+            if (end_time > sett.max_time) end_time = sett.max_time;
+
+
+            outputValueText(
+                file, sett, sig, val, end_time, start_pos_y
             );
         }
     }
@@ -352,7 +374,10 @@ static inline void outputSignalTitle(
 
     fprintf(file, "<text style=\"font-size:%f;", sig.font_size);
     fprintf(file, "color:%s;text-anchor:end;\" ", sig.text_color);
-    double y_pos = start_pos_y + sig.height / 2 + sig.font_size / 2;
+    fprintf(file, "dominant-baseline=\"central\" ");
+
+    double y_pos = start_pos_y + sig.height / 2;// + sig.font_size / 2;
+
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
         - *sig.text_margin, y_pos,
         ftell(file)
@@ -365,21 +390,28 @@ static inline void outputSignalTitle(
     fprintf(file, "</text>");
 }
 
+// TODO: Look at this page:
+// https://www.balisage.net/Proceedings/vol26/html/Birnbaum01/BalisageVol26-Birnbaum01.html
 
 // This function assumes sig.show_value is true.
-static inline void outputSignalText(
+static inline void outputValueText(
     FILE *file, svg_settings_t sett, signal_settings_t sig, value_pair_t val,
-    double start_pos_y
+    double end_time, double start_pos_y
 ) {
     double xs = sett.waveform_width / sett.max_time;
 
     fprintf(file, "<text style=\"font-size:%f;", sig.value_font_size);
     fprintf(file, "color:%s;text-anchor:start;\" ", sig.value_text_color);
-    double y_pos = start_pos_y + sig.height / 2 + sig.value_font_size / 2;
+
+    fprintf(file, "dominant-baseline=\"central\" ");
+    fprintf(file, "textLength=\"%f\" ", xs * (end_time - val.time));
+
+    double y_pos = start_pos_y + sig.height / 2; // + sig.value_font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"value%ld\">",
         xs * val.time + *sig.slope_width, y_pos,
         ftell(file)
     );
+
 
     uint64_t number = strtol(val.value_string, NULL, 2);
 
