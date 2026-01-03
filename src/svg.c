@@ -1,5 +1,7 @@
 #include "svg.h"
 #include "vcd.h"
+#include "fonts.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -255,6 +257,10 @@ void outputSignal(
         }
     }
 
+    fprintf(file, "\"/>\n");
+
+
+    // Output the signal values
     if (sig.show_value && var.size > 1) {
         for (size_t j = 0; j < var.value_count; j++) {
             value_pair_t val = var.values[j];
@@ -282,7 +288,6 @@ void outputSignal(
         }
     }
 
-    fprintf(file, "\"/>\n");
 
     outputSignalTitle(file, var, start_pos_y);
 
@@ -390,8 +395,6 @@ static inline void outputSignalTitle(
     fprintf(file, "</text>");
 }
 
-// TODO: Look at this page:
-// https://www.balisage.net/Proceedings/vol26/html/Birnbaum01/BalisageVol26-Birnbaum01.html
 
 // This function assumes sig.show_value is true.
 static inline void outputValueText(
@@ -402,9 +405,7 @@ static inline void outputValueText(
 
     fprintf(file, "<text style=\"font-size:%f;", sig.value_font_size);
     fprintf(file, "color:%s;text-anchor:start;\" ", sig.value_text_color);
-
     fprintf(file, "dominant-baseline=\"central\" ");
-    fprintf(file, "textLength=\"%f\" ", xs * (end_time - val.time));
 
     double y_pos = start_pos_y + sig.height / 2; // + sig.value_font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"value%ld\">",
@@ -413,25 +414,41 @@ static inline void outputValueText(
     );
 
 
+
     uint64_t number = strtol(val.value_string, NULL, 2);
+    char number_str[strlen(val.value_string) + 1];
+
 
     switch(sig.radix) {
         case 2:
-            fprintf(file, "%s", val.value_string);
+            sprintf(number_str, "%s", val.value_string);
             break;
         case 8:
-            fprintf(file, "%lo", number);
+            sprintf(number_str, "%lo", number);
             break;
         case 10:
-            fprintf(file, "%ld", number);
+            sprintf(number_str, "%ld", number);
             break;
         case 16:
-            fprintf(file, "%lx", number);
+            sprintf(number_str, "%lx", number);
             break;
         default:
-            fprintf(file, "Error base");
+            sprintf(number_str, "Error base");
             break;
 
+    }
+    int ret = limitTextWidth(
+        number_str, sig.font_size, xs * (end_time - val.time)
+    );
+
+    // Haven't really implemented any error propagation here so uhhh
+    // Let's just handle it like this:
+    if (ret) {
+        fprintf(file, "Oopsie whoopsy");
+        printf("Error: Signal value is weird. Please report this.\n");
+    }
+    else {
+        fprintf(file, "%s", number_str);
     }
     fprintf(file, "</text>");
 

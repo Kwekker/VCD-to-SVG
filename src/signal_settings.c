@@ -206,13 +206,16 @@ static const cyaml_schema_field_t top_field[] = {
         "global", CYAML_FLAG_STRICT, svg_settings_t, global, global_style_field
     ),
     CYAML_FIELD_FLOAT(
-        "waveform-width", CYAML_FLAG_STRICT, svg_settings_t, waveform_width
+        "waveform-width", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        svg_settings_t, waveform_width
     ),
     CYAML_FIELD_INT(
-        "max-time", CYAML_FLAG_STRICT, svg_settings_t, max_time
+        "max-time", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        svg_settings_t, max_time
     ),
     CYAML_FIELD_FLOAT(
-        "time-unit-width", CYAML_FLAG_STRICT, svg_settings_t, time_unit_width
+        "time-unit-width", CYAML_FLAG_STRICT | CYAML_FLAG_OPTIONAL,
+        svg_settings_t, time_unit_width
     ),
     CYAML_FIELD_END
 };
