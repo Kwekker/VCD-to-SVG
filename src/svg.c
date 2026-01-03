@@ -1,7 +1,5 @@
 #include "svg.h"
 #include "vcd.h"
-#include "fonts.h"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -257,10 +255,6 @@ void outputSignal(
         }
     }
 
-    fprintf(file, "\"/>\n");
-
-
-    // Output the signal values
     if (sig.show_value && var.size > 1) {
         for (size_t j = 0; j < var.value_count; j++) {
             value_pair_t val = var.values[j];
@@ -288,6 +282,7 @@ void outputSignal(
         }
     }
 
+    fprintf(file, "\"/>\n");
 
     outputSignalTitle(file, var, start_pos_y);
 
@@ -395,6 +390,8 @@ static inline void outputSignalTitle(
     fprintf(file, "</text>");
 }
 
+// TODO: Look at this page:
+// https://www.balisage.net/Proceedings/vol26/html/Birnbaum01/BalisageVol26-Birnbaum01.html
 
 // This function assumes sig.show_value is true.
 static inline void outputValueText(
@@ -414,41 +411,25 @@ static inline void outputValueText(
     );
 
 
-
     uint64_t number = strtol(val.value_string, NULL, 2);
-    char number_str[strlen(val.value_string) + 1];
-
 
     switch(sig.radix) {
         case 2:
-            sprintf(number_str, "%s", val.value_string);
+            fprintf(file, "%s", val.value_string);
             break;
         case 8:
-            sprintf(number_str, "%lo", number);
+            fprintf(file, "%lo", number);
             break;
         case 10:
-            sprintf(number_str, "%ld", number);
+            fprintf(file, "%ld", number);
             break;
         case 16:
-            sprintf(number_str, "%lx", number);
+            fprintf(file, "%lx", number);
             break;
         default:
-            sprintf(number_str, "Error base");
+            fprintf(file, "Error base");
             break;
 
-    }
-    int ret = limitTextWidth(
-        number_str, sig.font_size, xs * (end_time - val.time)
-    );
-
-    // Haven't really implemented any error propagation here so uhhh
-    // Let's just handle it like this:
-    if (ret) {
-        fprintf(file, "Oopsie whoopsy");
-        printf("Error: Signal value is weird. Please report this.\n");
-    }
-    else {
-        fprintf(file, "%s", number_str);
     }
     fprintf(file, "</text>");
 

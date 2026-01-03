@@ -25,7 +25,7 @@ static double font[] = {
 };
 
 static const double multiplier = 49.8217868;
-static const double average = 28.66235789 / multiplier;
+static const double avg_char_width = 28.66235789 / multiplier;
 static const double max_char_width = 48 / multiplier;
 static const double min_char_width = 13.195 / multiplier;
 
@@ -72,37 +72,43 @@ int limitTextWidth(char *text, double font_height, double max_width) {
 
     // Overestimate the amount of characters we need to shave off.
     double difference = text_width - max_width;
-    int32_t characters = difference / (font_height * min_char_width);
+    int32_t excess_chars = difference / (font_height * avg_char_width);
 
-    strcpy(copy + copy_length - characters - 3, "...");
-    copy_length -= characters;
+    strcpy(copy + copy_length - excess_chars - 2, "..");
+    copy_length -= excess_chars;
 
-    text_width = approximateTextWidth(copy, font_height);
-    printf("\tOverestimated %d characters. It's now %f.\n", characters, text_width);
+    double copy_width = approximateTextWidth(copy, font_height);
+    printf("\tEstimated %d excess characters. It's now %f.\n", excess_chars, copy_width);
     printf("\tCopy is %s\n", copy);
 
-
-    if (text_width > max_width) return -1;
-
-    uint32_t added_back = 0;
-    while(1) {
-        // Keep adding characters back until the max_width width is reached.
-        copy[copy_length] = text[copy_length];
-        copy[copy_length + 3] = '.';
-        copy[copy_length + 4] = '\0';
+    // Keep adding characters until we exceed the maximum length.
+    while(copy_width < max_width) {
+        // Make the first '.' a letter from text
+        // Make the terminating '\0' a '.'
+        // Make the character after the '\0' the new terminating '\0'
+        copy[copy_length - 2] = text[copy_length - 2];
+        copy[copy_length] = '.';
+        copy[copy_length + 1] = '\0';
         copy_length++;
-        printf("\tAdding back:\n\t\"%s\"\n", copy);
-
-        if (approximateTextWidth(copy, font_height) > max_width) {
-            copy[copy_length + 3] = '\0';
-            copy[copy_length - 1] = '.';
-            printf("\tAdded %d characters back. Width is now %f.\n",
-                added_back, approximateTextWidth(copy, font_height)
-            );
-            return 0;
-        }
-        added_back++;
+        copy_width = approximateTextWidth(copy, font_height);
+        printf("\tMade it longer to %s\n", copy);
+        printf("\tWidth is now %f\n", copy_width);
     }
+
+    while(copy_width > max_width) {
+        copy[copy_length - 3] = '.';
+        copy[copy_length - 1] = '\0';
+        copy_length--;
+        copy_width = approximateTextWidth(copy, font_height);
+        printf("\tMade it shorter to %s\n", copy);
+        printf("\tWidth is now %f\n", copy_width);
+    }
+
+    // The string should now be the longest it can be within the bounds of
+    // the max_width.
+    strcpy(text, copy);
+
+    return 0;
 }
 
 
@@ -120,7 +126,7 @@ int main(int argc, char *argv[]) {
     if (width < 0) printf("Something went wrong with the text\n");
     printf("%f\n", width);
 
-    limitTextWidth(argv[1], 1, width / 2);
+    limitTextWidth(argv[1], 1, width * 0.75);
 
     printf("Limited text: %s\n", argv[1]);
 
