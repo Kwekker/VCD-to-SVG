@@ -177,7 +177,6 @@ void outputSignal(
         ftell(file), var.name
     );
     printf("Drawing %s\n", var.name);
-    printf("\tline color is %s\n", sig.line_color);
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
         sig.line_thickness, sig.line_color
     );
@@ -193,8 +192,6 @@ void outputSignal(
     uint8_t was_zero = 0;
     if (var.size == 1) was_zero = var.values[0].value_char == '1';
     else was_zero = isZero(var.values[0].value_string);
-
-    printf("\tWas zero: %d\n", was_zero);
 
     size_t prev_time = 0;
 
@@ -216,17 +213,14 @@ void outputSignal(
         else is_zero = isZero(val->value_string);
 
         // Continue if the value didn't change.
-        if (is_zero && was_zero) {
-            printf("\tContinuing because was and is zero\n");
-            continue;
-        }
+        if (is_zero && was_zero) continue;
+
         char* prev = var.values[j-1].value_string;
         if (var.size > 1 && (
             !is_zero && memcmp(val->value_string, prev, var.size) == 0
         )) {
             // Mark value as duplicate for later when we're emitting text.
             val->duplicate = 1;
-            printf("\tContinuing because it's a duplicate\n");
             continue;
         }
 
@@ -328,15 +322,7 @@ static inline void outputVectorSignal(
 
     if (prev_time == 0) prev_time = -*sig.slope_width / 2;
 
-    if (is_zero && was_zero) {
-        printf("\tIs zero and was zero\n");
-        return;
-    }
-    printf("\tValue: %s\n", val.value_string);
-
-
     if (is_zero) { // From a value to zero
-        printf("\tValue to zero\n");
         // Bottom line that ends  in the middle of /
         fprintf(file, "H %f L %f %f ",
             xs*val.time - *sig.slope_width / 2.0,
@@ -351,7 +337,6 @@ static inline void outputVectorSignal(
         );
     }
     else if (!is_zero && !was_zero) { // From a value to another value
-        printf("\tValue to value\n");
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f",
             xs*val.time - *sig.slope_width / 2.0,
@@ -367,7 +352,6 @@ static inline void outputVectorSignal(
         );
     }
     else if (!is_zero && was_zero) { // From zero to a value
-        printf("\tZero to value\n");
         // Bottom line that goes up like ____/‾
         fprintf(file, "H %f L %f %f ",
             xs*val.time - *sig.slope_width / 2.0,
@@ -379,9 +363,6 @@ static inline void outputVectorSignal(
             xs*val.time, start_pos_y + sig.height / 2.0,
             xs*val.time + *sig.slope_width / 2.0, start_pos_y + sig.height
         );
-    }
-    else {
-        printf("\tExcuse me\n");
     }
 }
 
