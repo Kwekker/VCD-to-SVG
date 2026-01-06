@@ -237,6 +237,7 @@ int applySettings(vcd_t *vcd, svg_settings_t settings) {
             return -1;
         }
 
+
         if (var == NULL) {
             printf("Error: Could not find signal %zu ", i);
             if (sig.id != NULL) printf("with id \"%s\" ", sig.id);
@@ -244,8 +245,6 @@ int applySettings(vcd_t *vcd, svg_settings_t settings) {
             printf("in the VCD file.\n");
             return -1;
         }
-
-        printf("Checking %s/%s which is var %s\n", sig.id, sig.path, var->name);
 
 
         // Since the style is copied, the id field doesn't serve a function

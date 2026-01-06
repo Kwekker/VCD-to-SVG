@@ -199,7 +199,8 @@ static const cyaml_schema_value_t style_schema = {
 
 static const cyaml_schema_field_t top_field[] = {
     CYAML_FIELD_SEQUENCE_COUNT(
-        "signals", CYAML_FLAG_POINTER, svg_settings_t, signals, signal_count,
+        "signals", CYAML_FLAG_POINTER | CYAML_FLAG_OPTIONAL,
+        svg_settings_t, signals, signal_count,
         &style_schema, 0, CYAML_UNLIMITED
     ),
     CYAML_FIELD_MAPPING(
@@ -274,27 +275,28 @@ svg_settings_t initSvgSettings(size_t count) {
 void mergeStyles(signal_settings_t *dest, signal_settings_t *from) {
     // Please tell me if you know a better way to do this.
 
-    printf("%s:%s  %s\t<-\t", dest->id, dest->path, dest->line_color);
-    printf("%s:%s  %s\n", from->id, from->path, from->line_color);
+    printf("dest: %s, from: %s, slope_width: %p, %f\n", dest->path, from->path, from->slope_width, (from->slope_width == NULL) ? -1 : *from->slope_width);
 
-    if (dest->show == NULL) dest->show = from->show;
-    if (dest->height == 0) dest->height = from->height;
-    if (dest->slope_width == NULL) dest->slope_width = from->slope_width;
-    if (dest->margin == NULL) dest->margin = from->margin;
-    if (dest->text_margin == NULL) dest->text_margin = from->text_margin;
-    if (dest->line_thickness == 0) dest->line_thickness = from->line_thickness;
-    if (dest->font_size == 0) dest->font_size = from->font_size;
-    if (dest->line_color == NULL) dest->line_color = from->line_color;
-    if (dest->text_color == NULL) dest->text_color = from->text_color;
+    if (from->show != NULL) dest->show = from->show;
+    if (from->height != 0) dest->height = from->height;
+    if (from->slope_width != NULL) dest->slope_width = from->slope_width;
+    if (from->margin != NULL) dest->margin = from->margin;
+    if (from->text_margin != NULL) dest->text_margin = from->text_margin;
+    if (from->line_thickness != 0) dest->line_thickness = from->line_thickness;
+    if (from->font_size != 0) dest->font_size = from->font_size;
+    if (from->line_color != NULL) dest->line_color = from->line_color;
+    if (from->text_color != NULL) dest->text_color = from->text_color;
 
-    if (dest->show_value == NULL) dest->show_value = from->show_value;
-    if (dest->radix == 0) dest->radix = from->radix;
-    if (dest->fixed_point_shift == NULL)
+    if (from->show_value != NULL) dest->show_value = from->show_value;
+    if (from->radix != 0) dest->radix = from->radix;
+    if (from->fixed_point_shift != NULL)
         dest->fixed_point_shift = from->fixed_point_shift;
-    if (dest->value_font_size == 0)
+    if (from->value_font_size != 0)
         dest->value_font_size = from->value_font_size;
-    if (dest->value_text_color == NULL)
+    if (from->value_text_color != NULL)
         dest->value_text_color = from->value_text_color;
+
+    printf("It's now %p, %f\n", dest->slope_width, (dest->slope_width == NULL) ? -1 : *dest->slope_width);
 
 }
 

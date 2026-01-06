@@ -176,7 +176,6 @@ void outputSignal(
     fprintf(file, "<g id=\"var_%ld\" inkscape:label=\"%s\">\n",
         ftell(file), var.name
     );
-    printf("Drawing %s\n", var.name);
     fprintf(file, "<path style=\"" DEFAULT_STROKE_STYLE "\"\n",
         sig.line_thickness, sig.line_color
     );
@@ -242,9 +241,6 @@ void outputSignal(
     // Draw a final line if the signal got cut off,
     // or if we haven't drawn anything yet.
     if (prev_time != sett.max_time || line_count == 0) {
-        printf("Drawing final part because %zu != %zu or %zu == 0\n",
-            prev_time, sett.max_time, line_count
-        );
         double final_time = sett.max_time;
         fprintf(file, "H %f", xs*final_time);
         if (!was_zero && var.size > 1) {
@@ -297,11 +293,21 @@ static inline void outputBitFlip(
 ) {
     double xs = sett.waveform_width / sett.max_time;
 
-    fprintf(file, "H %f L %f %f ",
-        xs*time - *sig.slope_width / 2.0,      // x1
-        xs*time + *sig.slope_width / 2.0,      // x2
-        start_pos_y + sig.height * !new_state // y2
-    );
+    printf("\tslope width is %p %f\n", sig.slope_width, (sig.slope_width == NULL) ? -1 : *sig.slope_width);
+
+    if (*sig.slope_width == 0) {
+        fprintf(file, "H %f V %f",
+            xs*time, start_pos_y + sig.height * !new_state
+        );
+    }
+    else {
+        fprintf(file, "H %f L %f %f ",
+            xs*time - *sig.slope_width / 2.0,      // x1
+            xs*time + *sig.slope_width / 2.0,      // x2
+            start_pos_y + sig.height * !new_state // y2
+        );
+    }
+
 }
 
 
@@ -380,8 +386,9 @@ static inline void outputSignalTitle(
     double y_pos = start_pos_y + sig.height / 2;// + sig.font_size / 2;
 
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"text%ld\">",
-        - *sig.text_margin, y_pos,
-        ftell(file)
+        - *sig.text_margin, // x pos
+        y_pos,              // y pos
+        ftell(file)         // unique id
     );
 
     char *name = strrchr(var.name, '/') + 1;
@@ -407,7 +414,8 @@ static inline void outputValueText(
 
     double y_pos = start_pos_y + sig.height / 2; // + sig.value_font_size / 2;
     fprintf(file, "x=\"%f\" y=\"%f\" id=\"value%ld\">",
-        xs * val.time + *sig.slope_width, y_pos,
+        xs * val.time + *sig.slope_width / 2, // x pos
+        y_pos,
         ftell(file)
     );
 
