@@ -5,6 +5,8 @@
 # Unignore all dirs
 !*/
 
+!LICENCE
+
 *.o
 
 *.svg
